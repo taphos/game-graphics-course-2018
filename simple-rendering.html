@@ -182,11 +182,7 @@
         var rotateXMatrix = mat4.create();
         var rotateYMatrix = mat4.create();
 
-        var modelViewMatrix2 = mat4.create();
-        var modelViewProjectionMatrix2 = mat4.create();
-
         var drawCall = app.createDrawCall(program, vertexArray);
-        // var drawCall2 = app.createDrawCall(program, vertexArray);
 
         var startTime = new Date().getTime() / 1000;
         function draw() {
@@ -206,16 +202,15 @@
             drawCall.uniform("modelViewMatrix", modelViewMatrix);
             drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
 
-            mat4.fromTranslation(modelMatrix, vec3.fromValues(0, 0, 0));
-            mat4.multiply(modelViewMatrix2, viewMatrix, modelMatrix);
-            mat4.multiply(modelViewProjectionMatrix2, viewProjMatrix, modelMatrix);
-
-            // drawCall2.uniform("modelViewMatrix", modelViewMatrix2);
-            // drawCall2.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix2);
-
             app.clear();
             drawCall.draw();
-            // drawCall2.draw();
+
+            // mat4.fromTranslation(modelMatrix, vec3.fromValues(0, 0, 0));
+            // mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+            // mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+            // drawCall.uniform("modelViewMatrix", modelViewMatrix);
+            // drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
+            // drawCall.draw();
 
             requestAnimationFrame(draw);
         }
