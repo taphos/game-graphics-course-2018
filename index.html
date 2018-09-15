@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Simple Rendering</title>
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                margin: 0;
+                background-color: black;
+                overflow: hidden;
+                color: white;
+                font-family: Tahoma,sans-serif;
+            }
+            p {
+                margin: 50px;
+            }
+            h1, h2 {
+                margin: 50px;
+            }
+
+            a {
+                background-color: #F13;
+                color: white;
+                padding: 1em 1.5em;
+                text-decoration: none;
+            }
+            a:hover {
+                background-color: #555;
+            }
+        </style>
+        <script src="lib/gl-matrix.js"></script>
+        <script src="lib/picogl.js"></script>
+    </head>
+    <body>
+        <script type="text/javascript">
+            function getParameterByName(name) {
+                var match = RegExp('[?&]' + name + '=([^&]*)')
+                    .exec(window.location.search);
+                return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+            }
+
+            let app = null;
+            let loadScript = getParameterByName('load');
+            if ('undefined' !== typeof loadScript && loadScript !== null) {
+                let canvas = document.createElement("canvas");
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                document.body.appendChild(canvas);
+
+                app = PicoGL.createApp(canvas, {preserveDrawingBuffer: true});
+                window.onresize = function() {
+                    app.resize(window.innerWidth, window.innerHeight);
+                };
+
+                var thescript = document.createElement('script');
+                thescript.setAttribute('type','text/javascript');
+                thescript.setAttribute('src',loadScript);
+                document.getElementsByTagName('head')[0].appendChild(thescript);
+            }
+        </script>
+        <p>
+            <h1>Video Game Graphics Course</h1>
+            <h2>Slides</h2>
+            <p>
+                <a href="slides/01-introduction.pdf">01 Introduction</a>
+            </p>
+            <h2>Demos</h2>
+            <p>
+                <a href="?load=demos/simple-rendering.js">01 Simple rendering</a>
+            </p>
+        </p>
+    </body>
+</html>
