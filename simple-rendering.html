@@ -157,7 +157,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let app = PicoGL.createApp(canvas)
+        let app = PicoGL.createApp(canvas, {preserveDrawingBuffer: true})
             .clearColor(1.0, 0.2, 0.3, 1.0)
             // .depthTest();
             .cullBackfaces();
