@@ -186,19 +186,20 @@ let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 
+mat4.perspective(projMatrix, Math.PI / 4, app.width / app.height, 0.1, 100.0);
+mat4.lookAt(viewMatrix, vec3.fromValues(3, 2, 2), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
+
 let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("bgColor", bgColor)
     .uniform("fgColor", fgColor);
+
 let startTime = new Date().getTime() / 1000;
 
 
 
 function draw() {
     let time = new Date().getTime() / 1000 - startTime;
-
-    mat4.perspective(projMatrix, Math.PI / 4, app.width / app.height, 0.1, 100.0);
-    mat4.lookAt(viewMatrix, vec3.fromValues(3, 2, 2), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
-    mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
     mat4.fromXRotation(rotateXMatrix, time * 0.1136);
     mat4.fromYRotation(rotateYMatrix, time * 0.2235);
