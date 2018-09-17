@@ -152,8 +152,8 @@ let vertexShader = `
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
-        vec3 norm = (modelViewMatrix * vec4(normal, 0.0)).xyz;
-        color = mix(bgColor * 0.8, fgColor, norm.z) + pow(norm.z, 10.0);
+        vec3 viewNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz;
+        color = mix(bgColor * 0.8, fgColor, viewNormal.z) + pow(viewNormal.z, 10.0);
     }
 `;
 
