@@ -139,6 +139,8 @@ let fragmentShader = `
 let vertexShader = `
     #version 300 es
     
+    uniform vec4 bgColor;
+    uniform vec4 fgColor;
     uniform mat4 modelViewMatrix;
     uniform mat4 modelViewProjectionMatrix;
     
@@ -151,7 +153,7 @@ let vertexShader = `
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
         vec3 norm = (modelViewMatrix * vec4(normal, 0.0)).xyz;
-        color = mix(vec4(1.0, 0.2, 0.3, 1.0) * 0.8, vec4(1.0, 0.9, 0.5, 1.0), norm.z) + pow(norm.z, 10.0);
+        color = mix(bgColor * 0.8, fgColor, norm.z) + pow(norm.z, 10.0);
     }
 `;
 
@@ -160,8 +162,12 @@ let vertexShader = `
 // **             Application processing               **
 // ******************************************************
 
-app.clearColor(1.0, 0.2, 0.3, 1.0)
-// .depthTest();
+let bgColor = vec4.fromValues(1.0, 0.2, 0.3, 1.0);
+let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+
+
+app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3])
+    // .depthTest();
     .cullBackfaces();
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
@@ -180,7 +186,9 @@ let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 
-let drawCall = app.createDrawCall(program, vertexArray);
+let drawCall = app.createDrawCall(program, vertexArray)
+    .uniform("bgColor", bgColor)
+    .uniform("fgColor", fgColor);
 let startTime = new Date().getTime() / 1000;
 
 
