@@ -10,3 +10,4 @@ Video Game Graphics course for Estonian Entrepreneurship University of Applied S
 1. Add meaningful comment and Commit changes
 1. Repeat from 4. until done
 1. Push commits back to Guthub repository 
+1. Update your fork with latest changes from this repository by merging upstream branch
