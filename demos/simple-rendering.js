@@ -5,7 +5,7 @@
 // *********************************************************************************************************************
 
 // Home task: change anything you like in this small demo, be creative and make it look cool ;)
-// * You can change 3D cube model with any other mesh using Blender WebGL export addon https://gist.github.com/mnstrspeed/c8a61e54fa99cc4ca1e1672e0739eb6e
+// * You can change 3D cube model with any other mesh using Blender WebGL export addon, check blender/export_webgl.py
 // * Change object and camera transformations inside draw() function
 // * Change colors using bgColor and fgColor variables
 // * Distort object shape inside vertexShader
