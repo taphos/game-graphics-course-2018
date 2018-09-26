@@ -34,6 +34,20 @@
     </head>
     <body>
         <script type="text/javascript">
+            function loadImages(urls, ok) {
+                var numImages = urls.length;
+                var images = new Array(numImages);
+                function onload() {
+                    if (--numImages === 0)
+                        ok(images);
+                }
+                for (var i = 0; i < numImages; ++i) {
+                    images[i] = new Image();
+                    images[i].onload = onload;
+                    images[i].src = urls[i];
+                }
+            }
+
             function getParameterByName(name) {
                 var match = RegExp('[?&]' + name + '=([^&]*)')
                     .exec(window.location.search);
@@ -70,6 +84,7 @@
             <h2>Demos</h2>
             <p>
                 <a href="?load=demos/simple-rendering.js">01 Simple rendering</a>
+                <!--<a href="?load=demos/texturing.js">02 Texturing</a>-->
             </p>
         </p>
     </body>
