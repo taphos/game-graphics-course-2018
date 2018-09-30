@@ -239,18 +239,13 @@ let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 let viewDirectionProjectionInverse = mat4.create();
 
-loadImages(["images/texture.jpg", "images/sky-negx.png", "images/sky-posx.png", "images/sky-negy.png", "images/sky-posy.png", "images/sky-negz.png", "images/sky-posz.png"], function (images) {
+loadImages(["images/texture.jpg", "images/skybox.png"], function (images) {
     let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
-        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height));
+        .texture("tex", app.createTexture2D(images[0]));
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("skybox", app.createCubemap({
-            negX: images[1],
-            posX: images[2],
-            negY: images[3],
-            posY: images[4],
-            negZ: images[5],
-            posZ: images[6],
+            cross: images[1]
         }));
 
     let startTime = new Date().getTime() / 1000;
@@ -259,7 +254,7 @@ loadImages(["images/texture.jpg", "images/sky-negx.png", "images/sky-posx.png", 
     function draw() {
         let time = new Date().getTime() / 1000 - startTime;
 
-        mat4.perspective(projMatrix, Math.PI / 3, app.width / app.height, 0.1, 100.0);
+        mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
         let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 1, 3), vec3.fromValues(0, 0, 0), time * 0.05);
         mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
@@ -272,7 +267,7 @@ loadImages(["images/texture.jpg", "images/sky-negx.png", "images/sky-posx.png", 
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
 
         let skyboxView = mat4.clone(viewMatrix);
-        mat4.setTranslation(skyboxView, [0, 0, 0]);
+        mat4.setTranslation(skyboxView, vec3.fromValues(0, 0, 0));
         let skyboxViewProjectionMatrix = mat4.create();
         mat4.mul(skyboxViewProjectionMatrix, projMatrix, skyboxView);
         mat4.invert(viewDirectionProjectionInverse, skyboxViewProjectionMatrix);
