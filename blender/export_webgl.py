@@ -28,7 +28,6 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
     filename_ext = ".js"
     filter_glob = StringProperty(default="*.js", options={'HIDDEN'})
 
-    opt_MergeVertexNormal = BoolProperty(name="Merge vertex and normal arrays", description="Merge vertex and normal arrays", default=False)
     opt_FloatDecimals = IntProperty(name="Number of decimals on floats", description="Number of decimals on floats", default=4)
     opt_Scale = FloatProperty(name="Scale", description="Scale", default=1.0)
 
@@ -43,27 +42,18 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
         data = obj.data
         tris = data.polygons
 
-        if self.opt_MergeVertexNormal:
-            vertices = [list(v.co) for v in data.vertices]
-            normals = [list(v.normal) for v in data.vertices]
-            vertexnormals = flatten([val for pair in zip(vertices, normals) for val in pair])
-        else:
-            vertices = flatten([list(v.co) for v in data.vertices])
-            normals = flatten([list(v.normal) for v in data.vertices])
+        vertices = flatten([list(v.co) for v in data.vertices])
+        normals = flatten([list(v.normal) for v in data.vertices])
 
         indices = flatten([polygon_to_tris(list(face.vertices)) for face in data.polygons])
 
         float_format = "{:." + str(self.opt_FloatDecimals) + "f}"
         with open(path, 'w') as f:
             f.write("// " + obj.name + "\n")
-            if self.opt_MergeVertexNormal:
-                f.write("var {0}_array = [ {1} ];\n".format(
-                    obj.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertexnormals])))
-            else:
-                f.write("var {0}_vertices = [ {1} ];\n".format(
-                    obj.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertices])))
-                f.write("var {0}_normals = [ {1} ];\n".format(
-                    obj.name, ",".join([float_format.format(n * self.opt_Scale) for n in normals])))
+            f.write("var {0}_vertices = [ {1} ];\n".format(
+                obj.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertices])))
+            f.write("var {0}_normals = [ {1} ];\n".format(
+                obj.name, ",".join([float_format.format(n * self.opt_Scale) for n in normals])))
 
             if data.uv_layers.active is not None:
                 uvs = [None] * len(data.vertices)
