@@ -37,6 +37,8 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
         return context.active_object != None
 
     def export_as_webgl_arrays(self, obj, path):
+        bpy.ops.object.mode_set(mode='OBJECT')
+
         obj = bpy.context.object
         data = obj.data
         tris = data.polygons
@@ -62,6 +64,19 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
                     obj.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertices])))
                 f.write("var {0}_normals = [ {1} ];\n".format(
                     obj.name, ",".join([float_format.format(n * self.opt_Scale) for n in normals])))
+
+            if data.uv_layers.active is not None:
+                uvs = [None] * len(data.vertices)
+                index = 0
+                for p in data.polygons:
+                    for v in p.vertices:
+                        uvs[v] = data.uv_layers.active.data[index].uv
+                        index = index + 1
+
+                uvs = flatten([list(v) for v in uvs])
+                f.write("var {0}_uvs = [ {1} ];\n".format(
+                    obj.name, ",".join([float_format.format(n) for n in uvs])))
+
             f.write("var {0}_indices = [ {1} ];\n".format(
                 obj.name, ",".join([str(i) for i in indices])))
 
