@@ -139,9 +139,17 @@ let triangles = new Uint16Array([
     20, 23, 22,
 ]);
 
-let skyboxVertices = new Float32Array([-1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0]);
+let skyboxPositions = new Float32Array([
+    -1.0, 1.0, 1.0,
+    1.0, 1.0, 1.0,
+    -1.0, -1.0, 1.0,
+    1.0, -1.0, 1.0
+]);
 
-let skyboxTriangles = new Uint16Array([0, 2, 1, 2, 3, 1]);
+let skyboxTriangles = new Uint16Array([
+    0, 2, 1,
+    2, 3, 1
+]);
 
 
 // language=GLSL
@@ -151,13 +159,13 @@ let fragmentShader = `
     
     uniform sampler2D tex;    
     
-    in vec2 uv;
+    in vec2 v_uv;
     
     out vec4 outColor;
     
     void main()
     {        
-        outColor = texture(tex, uv);
+        outColor = texture(tex, v_uv);
     }
 `;
 
@@ -169,14 +177,14 @@ let vertexShader = `
     
     layout(location=0) in vec3 position;
     layout(location=1) in vec3 normal;
-    layout(location=2) in vec2 inUv;
+    layout(location=2) in vec2 uv;
         
-    out vec2 uv;
+    out vec2 v_uv;
     
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);           
-        uv = inUv;
+        v_uv = uv;
     }
 `;
 
@@ -223,7 +231,7 @@ let vertexArray = app.createVertexArray()
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, triangles));
 
 let skyboxArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, skyboxVertices))
+    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, skyboxPositions))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, skyboxTriangles));
 
 let projMatrix = mat4.create();
@@ -239,7 +247,7 @@ let skyboxViewProjectionInverse = mat4.create();
 
 loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
-        .texture("tex", app.createTexture2D(images[0]));
+        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true}));
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("cubemap", app.createCubemap({cross: images[1]}));
