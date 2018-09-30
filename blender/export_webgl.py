@@ -35,44 +35,42 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
     def poll(cls, context):
         return context.active_object != None
 
-    def export_as_webgl_arrays(self, obj, path):
+    def export_as_webgl_arrays(self, path):
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        obj = bpy.context.object
-        data = obj.data
-        tris = data.polygons
+        object = bpy.context.object
 
-        vertices = flatten([list(v.co) for v in data.vertices])
-        normals = flatten([list(v.normal) for v in data.vertices])
+        vertices = []
+        normals = []
+        uvs = []
 
-        indices = flatten([polygon_to_tris(list(face.vertices)) for face in data.polygons])
+        loop_index = 0
+        for l in object.data.loops:
+            vertices.append(object.data.vertices[l.vertex_index].co)
+            normals.append(l.normal)
+            if object.data.uv_layers.active and len(object.data.uv_layers.active.data) > 0:
+                uvs.append(object.data.uv_layers.active.data[loop_index].uv)
+            loop_index = loop_index + 1
+
+        vertices = flatten([list(v) for v in vertices])
+        normals = flatten([list(n) for n in normals])
+        uvs = flatten([list(v) for v in uvs])
+        indices = flatten([polygon_to_tris(list(p.loop_indices)) for p in object.data.polygons])
 
         float_format = "{:." + str(self.opt_FloatDecimals) + "f}"
         with open(path, 'w') as f:
-            f.write("// " + obj.name + "\n")
+            f.write("// " + object.name + "\n")
             f.write("var {0}_vertices = [ {1} ];\n".format(
-                obj.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertices])))
+                object.name, ",".join([float_format.format(v * self.opt_Scale) for v in vertices])))
             f.write("var {0}_normals = [ {1} ];\n".format(
-                obj.name, ",".join([float_format.format(n * self.opt_Scale) for n in normals])))
-
-            if data.uv_layers.active is not None:
-                uvs = [None] * len(data.vertices)
-                index = 0
-                for p in data.polygons:
-                    for v in p.vertices:
-                        uvs[v] = data.uv_layers.active.data[index].uv
-                        index = index + 1
-
-                uvs = flatten([list(v) for v in uvs])
-                f.write("var {0}_uvs = [ {1} ];\n".format(
-                    obj.name, ",".join([float_format.format(n) for n in uvs])))
-
+                object.name, ",".join([float_format.format(n * self.opt_Scale) for n in normals])))
+            f.write("var {0}_uvs = [ {1} ];\n".format(
+                object.name, ",".join([float_format.format(n) for n in uvs])))
             f.write("var {0}_indices = [ {1} ];\n".format(
-                obj.name, ",".join([str(i) for i in indices])))
+                object.name, ",".join([str(i) for i in indices])))
 
     def execute(self, context):
-        obj = bpy.context.object
-        self.export_as_webgl_arrays(obj, self.filepath)
+        self.export_as_webgl_arrays(self.filepath)
 
         return {'FINISHED'}
 
