@@ -187,13 +187,13 @@ let skyboxFragmentShader = `
     precision mediump float;
     
     uniform samplerCube cubemap;
-    uniform mat4 viewDirectionProjectionInverse;
+    uniform mat4 viewProjectionInverse;
     in vec4 v_position;
     
     out vec4 outColor;
     
     void main() {
-      vec4 t = viewDirectionProjectionInverse * v_position;
+      vec4 t = viewProjectionInverse * v_position;
       outColor = texture(cubemap, normalize(t.xyz / t.w));
     }
 `;
@@ -210,7 +210,6 @@ let skyboxVertexShader = `
       gl_Position = position;
     }
 `;
-
 
 app.cullBackfaces();
 
@@ -235,7 +234,8 @@ let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
-let viewDirectionProjectionInverse = mat4.create();
+let skyboxViewProjectionInverse = mat4.create();
+
 
 loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
@@ -251,7 +251,7 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         let time = new Date().getTime() / 1000 - startTime;
 
         mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 1, 3), vec3.fromValues(0, 0, 0), time * 0.05);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 3), vec3.fromValues(0, 0, 0), time * 0.05);
         mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
@@ -266,12 +266,12 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         mat4.setTranslation(skyboxView, vec3.fromValues(0, 0, 0));
         let skyboxViewProjectionMatrix = mat4.create();
         mat4.mul(skyboxViewProjectionMatrix, projMatrix, skyboxView);
-        mat4.invert(viewDirectionProjectionInverse, skyboxViewProjectionMatrix);
+        mat4.invert(skyboxViewProjectionInverse, skyboxViewProjectionMatrix);
 
         app.clear();
 
         app.noDepthTest();
-        skyboxDrawCall.uniform("viewDirectionProjectionInverse", viewDirectionProjectionInverse);
+        skyboxDrawCall.uniform("viewProjectionInverse", skyboxViewProjectionInverse);
         skyboxDrawCall.draw();
 
         app.depthTest();
