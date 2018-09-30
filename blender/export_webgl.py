@@ -39,6 +39,7 @@ class ExportWebGL(bpy.types.Operator, ExportHelper):
         bpy.ops.object.mode_set(mode='OBJECT')
 
         object = bpy.context.object
+        object.data.calc_normals_split()
 
         vertices = []
         normals = []
