@@ -186,7 +186,7 @@ let skyboxFragmentShader = `
     #version 300 es
     precision mediump float;
     
-    uniform samplerCube skybox;
+    uniform samplerCube cubemap;
     uniform mat4 viewDirectionProjectionInverse;
     in vec4 v_position;
     
@@ -194,7 +194,7 @@ let skyboxFragmentShader = `
     
     void main() {
       vec4 t = viewDirectionProjectionInverse * v_position;
-      outColor = texture(skybox, normalize(t.xyz / t.w));
+      outColor = texture(cubemap, normalize(t.xyz / t.w));
     }
 `;
 
@@ -212,9 +212,7 @@ let skyboxVertexShader = `
 `;
 
 
-app
- //.depthTest()
-    .cullBackfaces();
+app.cullBackfaces();
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let skyboxProgram = app.createProgram(skyboxVertexShader.trim(), skyboxFragmentShader.trim());
@@ -239,14 +237,12 @@ let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 let viewDirectionProjectionInverse = mat4.create();
 
-loadImages(["images/texture.jpg", "images/skybox.png"], function (images) {
+loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
         .texture("tex", app.createTexture2D(images[0]));
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
-        .texture("skybox", app.createCubemap({
-            cross: images[1]
-        }));
+        .texture("cubemap", app.createCubemap({cross: images[1]}));
 
     let startTime = new Date().getTime() / 1000;
 
@@ -274,9 +270,11 @@ loadImages(["images/texture.jpg", "images/skybox.png"], function (images) {
 
         app.clear();
 
+        app.noDepthTest();
         skyboxDrawCall.uniform("viewDirectionProjectionInverse", viewDirectionProjectionInverse);
         skyboxDrawCall.draw();
 
+        app.depthTest();
         drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
         drawCall.draw();
 
