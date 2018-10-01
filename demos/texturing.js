@@ -246,8 +246,8 @@ let skyboxViewProjectionInverse = mat4.create();
 
 
 loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
-    let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
-        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true}));
+    let drawCall = app.createDrawCall(program, vertexArray)
+        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true, magFilter: PicoGL.NEAREST, wrapT: PicoGL.REPEAT}));
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("cubemap", app.createCubemap({cross: images[1]}));
