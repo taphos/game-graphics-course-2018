@@ -259,12 +259,12 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         let time = new Date().getTime() / 1000 - startTime;
 
         mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 3), vec3.fromValues(0, 0, 0), time * 0.05);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 2), vec3.fromValues(0, 0, 0), time * 0.05);
         mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
-        mat4.fromXRotation(rotateXMatrix, time * 0.1136);
-        mat4.fromYRotation(rotateYMatrix, time * 0.2235);
+        mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
+        mat4.fromZRotation(rotateYMatrix, time * 0.2235);
         mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
 
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
