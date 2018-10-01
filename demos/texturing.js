@@ -1,3 +1,15 @@
+// *********************************************************************************************************************
+// **                                                                                                                 **
+// **             Texturing example, Cube is mapped with 2D texture, skybox is mapped with a Cubemap                  **
+// **                                                                                                                 **
+// *********************************************************************************************************************
+
+// * Change textures
+// * Combine several textures in fragment shaders
+// * Distort UV coordinates
+// * Change texture filtering for pixel graphics
+// * Use wrapping modes for texture tiling
+
 
 let positions = new Float32Array([
     // front
