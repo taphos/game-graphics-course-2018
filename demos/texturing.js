@@ -169,7 +169,8 @@ let fragmentShader = `
     #version 300 es
     precision highp float;
     
-    uniform sampler2D tex;    
+    uniform sampler2D tex;
+    uniform float time;    
     
     in vec2 v_uv;
     
@@ -177,7 +178,10 @@ let fragmentShader = `
     
     void main()
     {        
-        outColor = texture(tex, v_uv);
+        // Combining 2 texture samples with multiplied uv coordinates
+        // Using time for second uv animation
+        outColor = texture(tex, (v_uv - 0.5) * 2.0) 
+                   + texture(tex, (v_uv - 0.5) * 2.0 * sin(time * 3.46641));
     }
 `;
 
@@ -195,7 +199,8 @@ let vertexShader = `
     
     void main()
     {
-        gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);           
+        // Cube size is multiplied by 2
+        gl_Position = modelViewProjectionMatrix * vec4(position, 1.0) * 2.0;           
         v_uv = uv;
     }
 `;
@@ -207,14 +212,17 @@ let skyboxFragmentShader = `
     precision mediump float;
     
     uniform samplerCube cubemap;
-    uniform mat4 viewProjectionInverse;
+    uniform samplerCube cubemap2;
+    uniform mat4 viewProjectionInverse;   
     in vec4 v_position;
     
     out vec4 outColor;
     
     void main() {
       vec4 t = viewProjectionInverse * v_position;
-      outColor = texture(cubemap, normalize(t.xyz / t.w));
+      
+      // Combining 2 cubemaps      
+      outColor = texture(cubemap, normalize(t.xyz / t.w)) * texture(cubemap2, normalize(t.xyz / t.w));
     }
 `;
 
@@ -253,16 +261,26 @@ let modelMatrix = mat4.create();
 let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
-let rotateYMatrix = mat4.create();
+let rotateZMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 
 
 loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let drawCall = app.createDrawCall(program, vertexArray)
-        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true, magFilter: PicoGL.NEAREST, wrapT: PicoGL.REPEAT}));
+        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true, magFilter: PicoGL.NEAREST, wrapT: PicoGL.MIRRORED_REPEAT, wrapS: PicoGL.MIRRORED_REPEAT}));
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
-        .texture("cubemap", app.createCubemap({cross: images[1]}));
+        .texture("cubemap", app.createCubemap({cross: images[1]}))
+
+        // Added second cubemap with all 6 sides mapped to texture.jpg
+        .texture("cubemap2", app.createCubemap({
+            negX: images[0],
+            posX: images[0],
+            negY: images[0],
+            posY: images[0],
+            negZ: images[0],
+            posZ: images[0]
+        }));
 
     let startTime = new Date().getTime() / 1000;
 
@@ -270,14 +288,14 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     function draw() {
         let time = new Date().getTime() / 1000 - startTime;
 
-        mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 2), vec3.fromValues(0, 0, 0), time * 0.05);
+        mat4.perspective(projMatrix, Math.PI / 1.4, app.width / app.height, 0.1, 100.0);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 1), vec3.fromValues(0, 0, 0), time);
         mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
         mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
-        mat4.fromZRotation(rotateYMatrix, time * 0.2235);
-        mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+        mat4.fromZRotation(rotateZMatrix, -time * 2);
+        mat4.multiply(modelMatrix, rotateXMatrix, rotateZMatrix);
 
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
@@ -296,6 +314,8 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
 
         app.depthTest();
         drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
+        // passing time value for uv animation
+        drawCall.uniform("time", time);
         drawCall.draw();
 
         requestAnimationFrame(draw);
