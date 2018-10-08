@@ -35,15 +35,16 @@ let lightCalculationShader = `
     
     // This function calculates light reflection using Phong reflection model (ambient + diffuse + specular)
     vec4 calculateLights(vec3 normal, vec3 position) {
-        vec3 camVec = normalize(cameraPosition.xyz - position);
+        vec3 viewDirection = normalize(cameraPosition.xyz - position);
         vec4 color = vec4(ambientLightColor, 1.0);
                 
         for (int i = 0; i < lightPositions.length(); i++) {
-            vec3 lightDirection = normalize(lightPositions[i].xyz - position);  
-                      
-            float diffuse = max(dot(lightDirection, normal), 0.0);            
+            vec3 lightDirection = normalize(lightPositions[i] - position);                        
+            float diffuse = max(dot(lightDirection, normal), 0.0);           
+            
             // Remove specular highlight for Lambertian reflection (ideal matte)
-            float specular = pow(max(dot(camVec, reflect(-lightDirection, normal)), 0.0), 50.0);
+            float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);                        
+            
             color.rgb += lightColors[i] * diffuse + specular;
         }
         return color;
