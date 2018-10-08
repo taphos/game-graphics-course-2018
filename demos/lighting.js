@@ -21,8 +21,9 @@ let triangles = new Uint16Array([ 0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11,12,13,1
 
 let ambientLightColor = vec3.fromValues(0.05, 0.05, 0.1);
 let numberOfLights = 2;
-let lightColors = [vec3.fromValues(1.0, 0.0, 0.2), vec3.fromValues(0.0, 0.2, 0.2)];
+let lightColors = [vec3.fromValues(1.0, 0.0, 0.2), vec3.fromValues(0.0, 0.1, 0.2)];
 let lightInitialPositions = [vec3.fromValues(5, 0, 2), vec3.fromValues(-5, 0, 2)];
+let lightPositions = [vec3.create(), vec3.create()];
 
 
 // language=GLSL
@@ -110,7 +111,6 @@ let projectionMatrix = mat4.create();
 let viewMatrix = mat4.create();
 let viewProjectionMatrix = mat4.create();
 let modelMatrix = mat4.create();
-let lightPositions = [vec3.create(), vec3.create()];
 
 let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("ambientLightColor", ambientLightColor);
