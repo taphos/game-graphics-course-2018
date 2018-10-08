@@ -12,30 +12,26 @@ let fragmentShader = `
     precision highp float;
         
     uniform vec3 cameraPosition;
-    uniform vec3 ambientLight;
+    uniform vec3 ambientLight;    
     uniform vec3 lightColors[2];        
     uniform vec3 lightPositions[2];        
     
     in vec3 vPosition;    
     in vec3 vNormal;
+    in vec4 vColor;
     
-    out vec4 fragColor;        
+    out vec4 outColor;        
     
     void main() {        
         vec3 normal = normalize(vNormal);
-        vec3 eyeVec = normalize(cameraPosition.xyz - vPosition);
+        vec3 camVec = normalize(cameraPosition.xyz - vPosition);        
+        outColor = vec4(ambientLight, 1.0);
         
-        float ambient = 0.1;
-        float diffuse = 0.0;
-        float highlight = 0.0;
-        
-        fragColor.rgb = ambientLight;
-        
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < lightPositions.length(); i++) {
             vec3 lightDirection = normalize(lightPositions[i].xyz - vPosition);            
-            diffuse += max(dot(lightDirection, normal), 0.0);
-            highlight += pow(max(dot(eyeVec, reflect(-lightDirection, normal)), 0.0), 5.0) * 0.5;
-            fragColor += vec4(lightColors[i] * diffuse + highlight, 1.0);
+            float diffuse = max(dot(lightDirection, normal), 0.0);
+            float highlight = pow(max(dot(camVec, reflect(-lightDirection, normal)), 0.0), 5.0) * 0.5;
+            outColor.rgb += lightColors[i] * diffuse + highlight;
         }
     }
 `;
@@ -49,13 +45,11 @@ let vertexShader = `
     layout(location=1) in vec4 normal;
     
     uniform mat4 viewProjectionMatrix;
-    uniform mat4 modelMatrix;
-    
-    uniform vec3 cameraPosition;
-    uniform vec3 lightPositions[2];
+    uniform mat4 modelMatrix;            
     
     out vec3 vPosition;    
     out vec3 vNormal;
+    out vec4 vColor;
     
     void main() {
         vec4 worldPosition = modelMatrix * position;
@@ -67,12 +61,11 @@ let vertexShader = `
 
 
 let ambientLight = vec3.fromValues(0.0, 0.1, 0.05);
-let redLight = vec3.fromValues(1.0, 0.0, 0.0);
-let greenLight = vec3.fromValues(0.0, 0.0, 0.2);
+let lightColors =    [vec3.fromValues(1.0, 0.0, 0.0), vec3.fromValues(0.0, 0.0, 0.2)];
+let lightInitialPositions = [vec3.fromValues(20, 0, 10), vec3.fromValues(-20, 0, 10)];
+let lightPositions = [vec3.create(), vec3.create()];
 
-app.clearColor(ambientLight[0], ambientLight[1], ambientLight[2], 1)
-    .depthTest()
-    .cullBackfaces();
+app.depthTest().cullBackfaces();
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 
@@ -88,7 +81,7 @@ let modelMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 
-let drawCall = app.createDrawCall(program, vertexArray, PicoGL.TRIANGLES)
+let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("ambientLight", ambientLight);
 
 let startTime = new Date().getTime() / 1000;
@@ -107,14 +100,14 @@ function draw() {
     mat4.fromYRotation(rotateYMatrix,  Math.cos(time * 0.543) * 0.2);
     mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
 
-    let l1 = vec3.rotateZ(vec3.create(), vec3.fromValues(20, 0, 10), vec3.fromValues(0, 0, 0), time);
-    let l2 = vec3.rotateZ(vec3.create(), vec3.fromValues(-20, 0, 10), vec3.fromValues(0, 0, 0), time);
+    for (let i = 0; i < lightInitialPositions.length; i++)
+        vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.fromValues(0, 0, 0), time);
 
     drawCall.uniform("viewProjectionMatrix", viewProjectionMatrix);
     drawCall.uniform("modelMatrix", modelMatrix);
     drawCall.uniform("cameraPosition", cameraPosition);
-    drawCall.uniform("lightPositions[0]", Array.from(l1).concat(Array.from(l2)));
-    drawCall.uniform("lightColors[0]", Array.from(redLight).concat(Array.from(greenLight)));
+    drawCall.uniform("lightPositions", toUniformArray(lightPositions));
+    drawCall.uniform("lightColors", toUniformArray(lightColors));
 
     app.clear();
     drawCall.draw();

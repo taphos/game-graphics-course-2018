@@ -48,6 +48,13 @@
                 }
             }
 
+            function toUniformArray(array) {
+                let result = [];
+                for (let i = 0; i < array.length; i++)
+                    result = result.concat(Array.from(array[i]));
+                return result;
+            }
+
             function getParameterByName(name) {
                 var match = RegExp('[?&]' + name + '=([^&]*)')
                     .exec(window.location.search);
@@ -88,7 +95,7 @@
             <p>
                 <a href="?load=demos/simple-rendering.js">01 Simple rendering</a>
                 <a href="?load=demos/texturing.js">02 Texturing</a>
-                <!--<a href="?load=demos/lighting.js">03 Lighting</a>-->
+                <a href="?load=demos/lighting.js">03 Lighting</a>
             </p>
         </p>
     </body>
