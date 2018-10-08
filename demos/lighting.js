@@ -7,39 +7,48 @@ let normals = new Float32Array(Suzanne_normals);
 let triangles = new Uint16Array(Suzanne_indices);
 
 // language=GLSL
-let fragmentShader = `
-    #version 300 es
-    precision highp float;
-        
+let lightCalculationShader = `
     uniform vec3 cameraPosition;
     uniform vec3 ambientLight;    
     uniform vec3 lightColors[2];        
-    uniform vec3 lightPositions[2];        
+    uniform vec3 lightPositions[2];
     
-    in vec3 vPosition;    
-    in vec3 vNormal;
-    in vec4 vColor;
-    
-    out vec4 outColor;        
-    
-    void main() {        
-        vec3 normal = normalize(vNormal);
-        vec3 camVec = normalize(cameraPosition.xyz - vPosition);        
-        outColor = vec4(ambientLight, 1.0);
-        
+    vec4 calculateLights(vec3 normal, vec3 position) {
+        vec3 camVec = normalize(cameraPosition.xyz - position);
+        vec4 color = vec4(ambientLight, 1.0);
+                
         for (int i = 0; i < lightPositions.length(); i++) {
-            vec3 lightDirection = normalize(lightPositions[i].xyz - vPosition);            
+            vec3 lightDirection = normalize(lightPositions[i].xyz - position);            
             float diffuse = max(dot(lightDirection, normal), 0.0);
-            float highlight = pow(max(dot(camVec, reflect(-lightDirection, normal)), 0.0), 5.0) * 0.5;
-            outColor.rgb += lightColors[i] * diffuse + highlight;
+            float highlight = pow(max(dot(camVec, reflect(-lightDirection, normal)), 0.0), 20.0);
+            color.rgb += lightColors[i] * diffuse + highlight;
         }
+        return color;
     }
 `;
 
+// language=GLSL
+let fragmentShader = `
+    #version 300 es
+    precision highp float;        
+    ${lightCalculationShader}        
+    
+    in vec3 vPosition;    
+    in vec3 vNormal;
+    in vec4 vColor;    
+    
+    out vec4 outColor;        
+    
+    void main() {                      
+        outColor = calculateLights(normalize(vNormal), vPosition);
+        //outColor = vColor;
+    }
+`;
 
 // language=GLSL
 let vertexShader = `
     #version 300 es
+    ${lightCalculationShader}
         
     layout(location=0) in vec4 position;
     layout(location=1) in vec4 normal;
@@ -53,9 +62,12 @@ let vertexShader = `
     
     void main() {
         vec4 worldPosition = modelMatrix * position;
+        
         vPosition = worldPosition.xyz;        
         vNormal = (modelMatrix * normal).xyz;
-        gl_Position = viewProjectionMatrix * worldPosition;                
+        //vColor = calculateLights(normalize(vNormal), vPosition);
+        
+        gl_Position = viewProjectionMatrix * worldPosition;                        
     }
 `;
 
@@ -78,8 +90,6 @@ let projectionMatrix = mat4.create();
 let viewMatrix = mat4.create();
 let viewProjectionMatrix = mat4.create();
 let modelMatrix = mat4.create();
-let rotateXMatrix = mat4.create();
-let rotateYMatrix = mat4.create();
 
 let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("ambientLight", ambientLight);
@@ -87,21 +97,18 @@ let drawCall = app.createDrawCall(program, vertexArray)
 let startTime = new Date().getTime() / 1000;
 
 let cameraPosition = vec3.fromValues(0, 0, 5);
+mat4.fromXRotation(modelMatrix, -Math.PI / 2);
 
 
 function draw() {
     let time = new Date().getTime() / 1000 - startTime;
 
     mat4.perspective(projectionMatrix, Math.PI / 4, app.width / app.height, 0.1, 100.0);
-    mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+    mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
     mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
 
-    mat4.fromXRotation(rotateXMatrix, -Math.PI / 2 + Math.sin(time * 0.543) * 0.2);
-    mat4.fromYRotation(rotateYMatrix,  Math.cos(time * 0.543) * 0.2);
-    mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
-
     for (let i = 0; i < lightInitialPositions.length; i++)
-        vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.fromValues(0, 0, 0), time);
+        vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.zero, time);
 
     drawCall.uniform("viewProjectionMatrix", viewProjectionMatrix);
     drawCall.uniform("modelMatrix", modelMatrix);

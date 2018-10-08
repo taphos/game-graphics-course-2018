@@ -34,6 +34,9 @@
     </head>
     <body>
         <script type="text/javascript">
+            vec3.zero = vec3.fromValues(0, 0, 0);
+            vec3.up = vec3.fromValues(0, 1, 0);
+
             function loadImages(urls, ok) {
                 var numImages = urls.length;
                 var images = new Array(numImages);
