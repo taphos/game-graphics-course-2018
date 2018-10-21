@@ -34,6 +34,9 @@
     </head>
     <body>
         <script type="text/javascript">
+            vec3.zero = vec3.fromValues(0, 0, 0);
+            vec3.up = vec3.fromValues(0, 1, 0);
+
             function loadImages(urls, ok) {
                 var numImages = urls.length;
                 var images = new Array(numImages);
@@ -46,6 +49,13 @@
                     images[i].onload = onload;
                     images[i].src = urls[i];
                 }
+            }
+
+            function toUniformArray(array) {
+                let result = [];
+                for (let i = 0; i < array.length; i++)
+                    result = result.concat(Array.from(array[i]));
+                return result;
             }
 
             function getParameterByName(name) {
@@ -88,6 +98,7 @@
             <p>
                 <a href="?load=demos/simple-rendering.js">01 Simple rendering</a>
                 <a href="?load=demos/texturing.js">02 Texturing</a>
+                <a href="?load=demos/lighting.js">03 Lighting</a>
             </p>
         </p>
     </body>
