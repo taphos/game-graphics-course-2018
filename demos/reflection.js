@@ -152,6 +152,25 @@ let triangles = new Uint16Array([
     20, 23, 22,
 ]);
 
+let floorPositions = new Float32Array([
+    -2, 0, 2,
+     2, 0, 2,
+    -2, 0, -2,
+     2, 0, -2,
+]);
+
+let floorNormals = new Float32Array([
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+]);
+
+let floorTriangles = new Uint16Array([
+    0, 1, 2,
+    2, 1, 3
+]);
+
 
 let skyboxPositions = new Float32Array([
     -1.0, 1.0, 1.0,
@@ -175,14 +194,14 @@ let fragmentShader = `
     uniform samplerCube cubemap;    
     
     in vec2 vUv;
+    in vec3 vNormal;
     in vec3 viewDir;
-    in vec3 normalDir;
     
     out vec4 outColor;
     
     void main()
     {        
-        vec3 reflectedDir = reflect(viewDir, normalize(normalDir));
+        vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
         outColor = texture(tex, vUv) + texture(cubemap, reflectedDir);
     }
 `;
@@ -200,18 +219,45 @@ let vertexShader = `
     layout(location=2) in vec2 uv;
         
     out vec2 vUv;
+    out vec3 vNormal;
     out vec3 viewDir;
-    out vec3 normalDir;
     
     void main()
     {
         gl_Position = modelViewProjectionMatrix * position;           
         vUv = uv;
         viewDir = (modelMatrix * position).xyz - cameraPosition;        
-        normalDir = (modelMatrix * normal).xyz;
+        vNormal = (modelMatrix * normal).xyz;
     }
 `;
 
+// language=GLSL
+let floorFragmentShader = `
+    #version 300 es
+    precision highp float;
+        
+    out vec4 outColor;
+    
+    void main()
+    {                
+        outColor = vec4(1.0);
+    }
+`;
+
+// language=GLSL
+let floorVertexShader = `
+    #version 300 es
+            
+    uniform mat4 modelViewProjectionMatrix;
+    
+    layout(location=0) in vec4 position;
+    layout(location=1) in vec4 normal;
+        
+    void main()
+    {
+        gl_Position = modelViewProjectionMatrix * position;           
+    }
+`;
 
 // language=GLSL
 let skyboxFragmentShader = `
@@ -248,6 +294,7 @@ app.cullBackfaces();
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let skyboxProgram = app.createProgram(skyboxVertexShader.trim(), skyboxFragmentShader.trim());
+let floorProgram = app.createProgram(floorVertexShader.trim(), floorFragmentShader.trim());
 
 let vertexArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, positions))
@@ -259,6 +306,10 @@ let skyboxArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, skyboxPositions))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, skyboxTriangles));
 
+let floorArray = app.createVertexArray()
+    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, floorPositions))
+    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, floorTriangles));
+
 let projMatrix = mat4.create();
 let viewMatrix = mat4.create();
 let viewProjMatrix = mat4.create();
@@ -267,17 +318,20 @@ let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
+let floorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 
 
 loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let cubemap = app.createCubemap({cross: images[1]});
     let drawCall = app.createDrawCall(program, vertexArray)
-        .texture("tex", app.createTexture2D(images[0], images[0].width, images[0].height, {flipY: true, magFilter: PicoGL.NEAREST, wrapT: PicoGL.REPEAT}))
+        .texture("tex", app.createTexture2D(images[0]))
         .texture("cubemap", cubemap);
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("cubemap", cubemap);
+
+    let floorDrawCall = app.createDrawCall(floorProgram, floorArray);
 
     let startTime = new Date().getTime() / 1000;
 
@@ -286,7 +340,7 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         let time = new Date().getTime() / 1000 - startTime;
 
         mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, -1, 2), vec3.fromValues(0, 0, 0), time * 0.05);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 1, 2), vec3.fromValues(0, 0, 0), time * 0.05);
         mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
@@ -296,6 +350,7 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
 
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+        mat4.multiply(floorModelViewProjectionMatrix, viewProjMatrix, mat4.identity(mat4.create()));
 
         let skyboxView = mat4.clone(viewMatrix);
         mat4.setTranslation(skyboxView, vec3.fromValues(0, 0, 0));
@@ -314,6 +369,9 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         drawCall.uniform("cameraPosition", camPos);
         drawCall.uniform("modelMatrix", modelMatrix);
         drawCall.draw();
+
+        floorDrawCall.uniform("modelViewProjectionMatrix", floorModelViewProjectionMatrix);
+        floorDrawCall.draw();
 
         requestAnimationFrame(draw);
     }
