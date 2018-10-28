@@ -1,7 +1,11 @@
+// This demo demonstrates simple cubemap reflections and more complex planar reflections
+// Home task: combine reflections with texturing and lighting
 
+// Cube
 let positions = new Float32Array([-0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5]);
 let normals = new Float32Array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
 let triangles = new Uint16Array([2, 1, 0, 0, 3, 2, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 14, 13, 12, 12, 15, 14, 16, 17, 18, 18, 19, 16, 22, 21, 20, 20, 23, 22]);
+
 
 let mirrorPositions = new Float32Array([
     -2, 0, 2,
@@ -205,14 +209,14 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
         app.drawFramebuffer(reflectionBuffer);
         app.viewport(0, 0, reflectionColorTarget.width, reflectionColorTarget.height);
 
-        app.drawBackfaces();
+        app.gl.cullFace(app.gl.FRONT);
 
         let reflectionMatrix = mat4.calculateSurfaceReflectionMatrix(mat4.create(), mirrorModelMatrix, vec3.up);
-        let vMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
-        let cp = vec3.transformMat4(vec3.create(), cameraPosition, reflectionMatrix);
-        drawObjects(cp, vMatrix);
+        let reflectionViewMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
+        let reflectionCameraPosition = vec3.transformMat4(vec3.create(), cameraPosition, reflectionMatrix);
+        drawObjects(reflectionCameraPosition, reflectionViewMatrix);
 
-        app.cullBackfaces();
+        app.gl.cullFace(app.gl.BACK);
         app.defaultDrawFramebuffer();
         app.defaultViewport();
     }
@@ -231,11 +235,11 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
 
         app.clear();
 
-        app.noDepthTest();
+        app.noDepthTest().drawBackfaces();
         skyboxDrawCall.uniform("viewProjectionInverse", skyboxViewProjectionInverse);
         skyboxDrawCall.draw();
 
-        app.depthTest();
+        app.depthTest().cullBackfaces();
         drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
         drawCall.uniform("cameraPosition", cameraPosition);
         drawCall.uniform("modelMatrix", modelMatrix);
@@ -261,7 +265,10 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
         mat4.fromZRotation(rotateYMatrix, time * 0.2235);
         mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
 
-        mat4.fromTranslation(mirrorModelMatrix, vec3.fromValues(0, -1, 0));
+        mat4.fromXRotation(rotateXMatrix, 0.3);
+        mat4.fromYRotation(rotateYMatrix, time * 0.2354);
+        mat4.mul(mirrorModelMatrix, rotateYMatrix, rotateXMatrix);
+        mat4.setTranslation(mirrorModelMatrix, vec3.fromValues(0, -1, 0));
 
         renderReflectionTexture();
         drawObjects(cameraPosition, viewMatrix);
