@@ -97,7 +97,7 @@ let mirrorFragmentShader = `
     void main()
     {                        
         vec2 screenPos = gl_FragCoord.xy / screenSize;        
-        screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.02;
+        screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.03;
         outColor = texture(reflectionTex, screenPos);
     }
 `;
@@ -151,8 +151,6 @@ let skyboxVertexShader = `
     }
 `;
 
-app.cullBackfaces();
-
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let skyboxProgram = app.createProgram(skyboxVertexShader.trim(), skyboxFragmentShader.trim());
 let mirrorProgram = app.createProgram(mirrorVertexShader.trim(), mirrorFragmentShader.trim());
@@ -201,8 +199,6 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
     let mirrorDrawCall = app.createDrawCall(mirrorProgram, mirrorArray)
         .texture("reflectionTex", reflectionColorTarget)
         .texture("distortionMap", app.createTexture2D(images[1]));
-
-    let startTime = new Date().getTime() / 1000;
 
     function renderReflectionTexture()
     {
@@ -255,11 +251,11 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
     }
 
     function draw() {
-        let time = new Date().getTime() / 1000 - startTime;
+        let time = new Date().getTime() * 0.001;
 
         mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
         vec3.rotateY(cameraPosition, vec3.fromValues(0, 2, 4), vec3.zero, time * 0.05);
-        mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
+        mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, -0.5, 0), vec3.up);
 
         mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
         mat4.fromZRotation(rotateYMatrix, time * 0.2235);
