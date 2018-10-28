@@ -184,7 +184,7 @@ let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
-let mirrorModelMatrix = mat4.identity(mat4.create());
+let mirrorModelMatrix = mat4.create();
 let mirrorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 let cameraPosition = vec3.create();
@@ -211,7 +211,7 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
 
         app.drawBackfaces();
 
-        let reflectionMatrix = mat4.calculateReflectionMatrix(mat4.create(), mirrorModelMatrix);
+        let reflectionMatrix = mat4.calculateSurfaceReflectionMatrix(mat4.create(), mirrorModelMatrix, vec3.up);
         let vMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
         let cp = vec3.transformMat4(vec3.create(), cameraPosition, reflectionMatrix);
         drawObjects(cp, vMatrix);
@@ -258,13 +258,14 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
         let time = new Date().getTime() / 1000 - startTime;
 
         mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
-        vec3.rotateY(cameraPosition, vec3.fromValues(0, 2.5, 3), vec3.zero, time * 0.05);
+        vec3.rotateY(cameraPosition, vec3.fromValues(0, 2, 4), vec3.zero, time * 0.05);
         mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
 
         mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
         mat4.fromZRotation(rotateYMatrix, time * 0.2235);
         mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
-        mat4.setTranslation(modelMatrix, vec3.up);
+
+        mat4.fromTranslation(mirrorModelMatrix, vec3.fromValues(0, -1, 0));
 
         renderReflectionTexture();
         drawObjects(cameraPosition, viewMatrix);
