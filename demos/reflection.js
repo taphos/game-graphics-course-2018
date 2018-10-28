@@ -197,7 +197,6 @@ let fragmentShader = `
     #version 300 es
     precision highp float;
     
-    uniform sampler2D tex;
     uniform samplerCube cubemap;    
     
     in vec2 vUv;
@@ -209,7 +208,7 @@ let fragmentShader = `
     void main()
     {        
         vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
-        outColor = texture(tex, vUv) * 0.0 + texture(cubemap, reflectedDir);
+        outColor = texture(cubemap, reflectedDir);
     }
 `;
 
@@ -253,10 +252,9 @@ let floorFragmentShader = `
     
     void main()
     {                        
-        vec2 screenPos = gl_FragCoord.xy / screenSize;
-        screenPos.x = 1.0 - screenPos.x;
+        vec2 screenPos = gl_FragCoord.xy / screenSize;        
         screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.02;
-        outColor = texture(reflectionTex, screenPos) * 0.8 + 0.2;
+        outColor = texture(reflectionTex, screenPos);
     }
 `;
 
@@ -347,34 +345,40 @@ let floorModelMatrix = mat4.identity(mat4.create());
 let floorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 
-// function calculateReflectionMatrix(reflectionMat, plane)
-// {
-//     reflectionMat.m00 = (1 - 2 * plane[0] * plane[0]);
-//     reflectionMat.m01 = ( - 2 * plane[0] * plane[1]);
-//     reflectionMat.m02 = ( - 2 * plane[0] * plane[2]);
-//     reflectionMat.m03 = ( - 2 * plane[3] * plane[0]);
-//
-//     reflectionMat.m10 = ( - 2 * plane[1] * plane[0]);
-//     reflectionMat.m11 = (1 - 2 * plane[1] * plane[1]);
-//     reflectionMat.m12 = ( - 2 * plane[1] * plane[2]);
-//     reflectionMat.m13 = ( - 2 * plane[3] * plane[1]);
-//
-//     reflectionMat.m20 = ( - 2 * plane[2] * plane[0]);
-//     reflectionMat.m21 = ( - 2 * plane[2] * plane[1]);
-//     reflectionMat.m22 = (1 - 2 * plane[2] * plane[2]);
-//     reflectionMat.m23 = ( - 2 * plane[3] * plane[2]);
-//
-//     reflectionMat.m30 = 0;
-//     reflectionMat.m31 = 0;
-//     reflectionMat.m32 = 0;
-//     reflectionMat.m33 = 1;
-// }
+function calculateReflectionMatrix(reflectionMat, mirrorModelMatrix)
+{
+    let normal = vec3.transformMat4(vec3.create(), vec3.up, mirrorModelMatrix);
+    let pos = mat4.getTranslation(vec3.create(), mirrorModelMatrix);
+    let d = -vec3.dot(normal, pos);
+    let plane = vec4.fromValues(normal[0], normal[1], normal[2], d);
+
+    reflectionMat[0] = (1 - 2 * plane[0] * plane[0]);
+    reflectionMat[4] = ( - 2 * plane[0] * plane[1]);
+    reflectionMat[8] = ( - 2 * plane[0] * plane[2]);
+    reflectionMat[12] = ( - 2 * plane[3] * plane[0]);
+
+    reflectionMat[1] = ( - 2 * plane[1] * plane[0]);
+    reflectionMat[5] = (1 - 2 * plane[1] * plane[1]);
+    reflectionMat[9] = ( - 2 * plane[1] * plane[2]);
+    reflectionMat[13] = ( - 2 * plane[3] * plane[1]);
+
+    reflectionMat[2] = ( - 2 * plane[2] * plane[0]);
+    reflectionMat[6] = ( - 2 * plane[2] * plane[1]);
+    reflectionMat[10] = (1 - 2 * plane[2] * plane[2]);
+    reflectionMat[14] = ( - 2 * plane[3] * plane[2]);
+
+    reflectionMat[3] = 0;
+    reflectionMat[7] = 0;
+    reflectionMat[11] = 0;
+    reflectionMat[15] = 1;
+
+    return reflectionMat;
+}
 
 
-loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], function (images) {
-    let cubemap = app.createCubemap({cross: images[1]});
+loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
+    let cubemap = app.createCubemap({cross: images[0]});
     let drawCall = app.createDrawCall(program, vertexArray)
-        .texture("tex", app.createTexture2D(images[0]))
         .texture("cubemap", cubemap);
 
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
@@ -382,20 +386,23 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], fun
 
     let floorDrawCall = app.createDrawCall(floorProgram, floorArray)
         .texture("reflectionTex", reflectionColorTarget)
-        .texture("distortionMap", app.createTexture2D(images[2]));
+        .texture("distortionMap", app.createTexture2D(images[1]));
 
     let startTime = new Date().getTime() / 1000;
 
-    function renderReflection(camPos, projMatrix, viewMatrix, modelMatrix)
+    function renderReflection(camPos, projMatrix, viewMatrix, modelMatrix, mirrorModelMatrix)
     {
         app.drawFramebuffer(reflectionBuffer);
         app.viewport(0, 0, reflectionColorTarget.width, reflectionColorTarget.height);
 
-        let cp = vec3.clone(camPos);
-        cp.y = -cp.y;
-        let vMatrix = mat4.lookAt(mat4.create(), cp, vec3.fromValues(0, 0, 0), vec3.fromValues(0, -1, 0));
+        app.drawBackfaces();
+
+        let reflectionMatrix = calculateReflectionMatrix(mat4.create(), mirrorModelMatrix);
+        let vMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
+        let cp = vec3.transformMat4(vec3.create(), camPos, reflectionMatrix);
         drawObjects(cp, projMatrix, vMatrix, modelMatrix);
 
+        app.cullBackfaces();
         app.defaultDrawFramebuffer();
         app.defaultViewport();
     }
@@ -428,16 +435,16 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], fun
     function draw() {
         let time = new Date().getTime() / 1000 - startTime;
 
-        mat4.perspective(projMatrix, Math.PI / 3, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 3, 5), vec3.fromValues(0, 0, 0), time * 0.05);
-        mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+        mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 2.5, 3), vec3.zero, time * 0.05);
+        mat4.lookAt(viewMatrix, camPos, vec3.zero, vec3.up);
 
         mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
         mat4.fromZRotation(rotateYMatrix, time * 0.2235);
         mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
         mat4.setTranslation(modelMatrix, vec3.fromValues(0, 1, 0));
 
-        renderReflection(camPos, projMatrix, viewMatrix, modelMatrix);
+        renderReflection(camPos, projMatrix, viewMatrix, modelMatrix, floorModelMatrix);
 
         drawObjects(camPos, projMatrix, viewMatrix, modelMatrix);
         mat4.multiply(floorModelViewProjectionMatrix, viewProjMatrix, floorModelMatrix);
