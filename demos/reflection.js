@@ -1,24 +1,23 @@
 
 let positions = new Float32Array([-0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5]);
 let normals = new Float32Array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
-let uvs = new Float32Array([0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0]);
 let triangles = new Uint16Array([2, 1, 0, 0, 3, 2, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 14, 13, 12, 12, 15, 14, 16, 17, 18, 18, 19, 16, 22, 21, 20, 20, 23, 22]);
 
-let floorPositions = new Float32Array([
+let mirrorPositions = new Float32Array([
     -2, 0, 2,
      2, 0, 2,
     -2, 0, -2,
      2, 0, -2,
 ]);
 
-let floorUvs = new Float32Array([
+let mirrorUvs = new Float32Array([
     0, 1,
     1, 1,
     0, 0,
     1, 0,
 ]);
 
-let floorTriangles = new Uint16Array([
+let mirrorTriangles = new Uint16Array([
     0, 1, 2,
     2, 1, 3
 ]);
@@ -43,8 +42,7 @@ let fragmentShader = `
     precision highp float;
     
     uniform samplerCube cubemap;    
-    
-    in vec2 vUv;
+        
     in vec3 vNormal;
     in vec3 viewDir;
     
@@ -54,7 +52,6 @@ let fragmentShader = `
     {        
         vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
         outColor = texture(cubemap, reflectedDir);
-        //outColor = vec4(-normalize(vNormal).y, 0.0, 0.0, 1.0);
     }
 `;
 
@@ -85,7 +82,7 @@ let vertexShader = `
 `;
 
 // language=GLSL
-let floorFragmentShader = `
+let mirrorFragmentShader = `
     #version 300 es
     precision highp float;
     
@@ -106,7 +103,7 @@ let floorFragmentShader = `
 `;
 
 // language=GLSL
-let floorVertexShader = `
+let mirrorVertexShader = `
     #version 300 es
             
     uniform mat4 modelViewProjectionMatrix;
@@ -158,22 +155,21 @@ app.cullBackfaces();
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let skyboxProgram = app.createProgram(skyboxVertexShader.trim(), skyboxFragmentShader.trim());
-let floorProgram = app.createProgram(floorVertexShader.trim(), floorFragmentShader.trim());
+let mirrorProgram = app.createProgram(mirrorVertexShader.trim(), mirrorFragmentShader.trim());
 
 let vertexArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, positions))
     .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, normals))
-    .vertexAttributeBuffer(2, app.createVertexBuffer(PicoGL.FLOAT, 2, uvs))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, triangles));
 
 let skyboxArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, skyboxPositions))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, skyboxTriangles));
 
-let floorArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, floorPositions))
-    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 2, floorUvs))
-    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, floorTriangles));
+let mirrorArray = app.createVertexArray()
+    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, mirrorPositions))
+    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 2, mirrorUvs))
+    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, mirrorTriangles));
 
 let reflectionResolutionFactor = 0.3;
 let reflectionColorTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {magFilter: PicoGL.LINEAR});
@@ -188,9 +184,10 @@ let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
-let floorModelMatrix = mat4.identity(mat4.create());
-let floorModelViewProjectionMatrix = mat4.create();
+let mirrorModelMatrix = mat4.identity(mat4.create());
+let mirrorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
+let cameraPosition = vec3.create();
 
 function calculateReflectionMatrix(reflectionMat, mirrorModelMatrix)
 {
@@ -222,7 +219,6 @@ function calculateReflectionMatrix(reflectionMat, mirrorModelMatrix)
     return reflectionMat;
 }
 
-
 loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
     let cubemap = app.createCubemap({cross: images[0]});
     let drawCall = app.createDrawCall(program, vertexArray)
@@ -231,13 +227,13 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("cubemap", cubemap);
 
-    let floorDrawCall = app.createDrawCall(floorProgram, floorArray)
+    let mirrorDrawCall = app.createDrawCall(mirrorProgram, mirrorArray)
         .texture("reflectionTex", reflectionColorTarget)
         .texture("distortionMap", app.createTexture2D(images[1]));
 
     let startTime = new Date().getTime() / 1000;
 
-    function renderReflection(camPos, projMatrix, viewMatrix, modelMatrix, mirrorModelMatrix)
+    function renderReflectionTexture()
     {
         app.drawFramebuffer(reflectionBuffer);
         app.viewport(0, 0, reflectionColorTarget.width, reflectionColorTarget.height);
@@ -246,15 +242,15 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
 
         let reflectionMatrix = calculateReflectionMatrix(mat4.create(), mirrorModelMatrix);
         let vMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
-        let cp = vec3.transformMat4(vec3.create(), camPos, reflectionMatrix);
-        drawObjects(cp, projMatrix, vMatrix, modelMatrix);
+        let cp = vec3.transformMat4(vec3.create(), cameraPosition, reflectionMatrix);
+        drawObjects(cp, vMatrix);
 
         app.cullBackfaces();
         app.defaultDrawFramebuffer();
         app.defaultViewport();
     }
 
-    function drawObjects(camPos, projMatrix, viewMatrix, modelMatrix) {
+    function drawObjects(cameraPosition, viewMatrix) {
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
@@ -274,31 +270,34 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
 
         app.depthTest();
         drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
-        drawCall.uniform("cameraPosition", camPos);
+        drawCall.uniform("cameraPosition", cameraPosition);
         drawCall.uniform("modelMatrix", modelMatrix);
         drawCall.uniform("normalMatrix", mat3.normalFromMat4(mat3.create(), modelMatrix));
         drawCall.draw();
+    }
+
+    function drawMirror() {
+        mat4.multiply(mirrorModelViewProjectionMatrix, viewProjMatrix, mirrorModelMatrix);
+        mirrorDrawCall.uniform("modelViewProjectionMatrix", mirrorModelViewProjectionMatrix);
+        mirrorDrawCall.uniform("screenSize", vec2.fromValues(app.width, app.height))
+        mirrorDrawCall.draw();
     }
 
     function draw() {
         let time = new Date().getTime() / 1000 - startTime;
 
         mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 2.5, 3), vec3.zero, time * 0.05);
-        mat4.lookAt(viewMatrix, camPos, vec3.zero, vec3.up);
+        vec3.rotateY(cameraPosition, vec3.fromValues(0, 2.5, 3), vec3.zero, time * 0.05);
+        mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
 
         mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
         mat4.fromZRotation(rotateYMatrix, time * 0.2235);
         mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
         mat4.setTranslation(modelMatrix, vec3.up);
 
-        renderReflection(camPos, projMatrix, viewMatrix, modelMatrix, floorModelMatrix);
-
-        drawObjects(camPos, projMatrix, viewMatrix, modelMatrix);
-        mat4.multiply(floorModelViewProjectionMatrix, viewProjMatrix, floorModelMatrix);
-        floorDrawCall.uniform("modelViewProjectionMatrix", floorModelViewProjectionMatrix);
-        floorDrawCall.uniform("screenSize", vec2.fromValues(app.width, app.height))
-        floorDrawCall.draw();
+        renderReflectionTexture();
+        drawObjects(cameraPosition, viewMatrix);
+        drawMirror();
 
         requestAnimationFrame(draw);
     }
