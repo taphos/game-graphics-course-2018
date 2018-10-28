@@ -167,10 +167,10 @@ let floorNormals = new Float32Array([
 ]);
 
 let floorUvs = new Float32Array([
-    -1, 1,
+    0, 1,
     1, 1,
-    -1, -1,
-    1, -1,
+    0, 0,
+    1, 0,
 ]);
 
 let floorTriangles = new Uint16Array([
@@ -252,12 +252,11 @@ let floorFragmentShader = `
     out vec4 outColor;
     
     void main()
-    {                
-        
+    {                        
         vec2 screenPos = gl_FragCoord.xy / screenSize;
         screenPos.x = 1.0 - screenPos.x;
         screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.02;
-        outColor = texture(reflectionTex, screenPos) * 0.8 + 0.2;        
+        outColor = texture(reflectionTex, screenPos) * 0.8 + 0.2;
     }
 `;
 
@@ -331,8 +330,8 @@ let floorArray = app.createVertexArray()
     .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 2, floorUvs))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, floorTriangles));
 
-let reflectionResolutionFactor = 1;
-let reflectionColorTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor);
+let reflectionResolutionFactor = 0.3;
+let reflectionColorTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {magFilter: PicoGL.LINEAR});
 let reflectionDepthTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {format: PicoGL.DEPTH_COMPONENT});
 let reflectionBuffer = app.createFramebuffer().colorTarget(0, reflectionColorTarget).depthTarget(reflectionDepthTarget);
 
@@ -390,6 +389,7 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], fun
     function renderReflection(camPos, projMatrix, viewMatrix, modelMatrix)
     {
         app.drawFramebuffer(reflectionBuffer);
+        app.viewport(0, 0, reflectionColorTarget.width, reflectionColorTarget.height);
 
         let cp = vec3.clone(camPos);
         cp.y = -cp.y;
@@ -397,6 +397,7 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], fun
         drawObjects(cp, projMatrix, vMatrix, modelMatrix);
 
         app.defaultDrawFramebuffer();
+        app.defaultViewport();
     }
 
     function drawObjects(camPos, projMatrix, viewMatrix, modelMatrix) {

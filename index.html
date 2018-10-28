@@ -75,9 +75,9 @@
                 document.body.appendChild(canvas);
 
                 app = PicoGL.createApp(canvas, {preserveDrawingBuffer: true});
-                window.onresize = function() {
+                window.addEventListener("resize", function() {
                     app.resize(window.innerWidth, window.innerHeight);
-                };
+                });
 
                 var thescript = document.createElement('script');
                 thescript.setAttribute('type','text/javascript');
