@@ -178,6 +178,7 @@ let mirrorArray = app.createVertexArray()
     .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 2, mirrorUvs))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, mirrorTriangles));
 
+// Change the reflection texture resolution to checkout the difference
 let reflectionResolutionFactor = 0.3;
 let reflectionColorTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {magFilter: PicoGL.LINEAR});
 let reflectionDepthTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {format: PicoGL.DEPTH_COMPONENT});
