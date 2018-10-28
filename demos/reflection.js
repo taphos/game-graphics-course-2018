@@ -166,6 +166,13 @@ let floorNormals = new Float32Array([
     0, 1, 0,
 ]);
 
+let floorUvs = new Float32Array([
+    -1, 1,
+    1, 1,
+    -1, -1,
+    1, -1,
+]);
+
 let floorTriangles = new Uint16Array([
     0, 1, 2,
     2, 1, 3
@@ -202,7 +209,7 @@ let fragmentShader = `
     void main()
     {        
         vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
-        outColor = texture(tex, vUv) + texture(cubemap, reflectedDir);
+        outColor = texture(tex, vUv) * 0.0 + texture(cubemap, reflectedDir);
     }
 `;
 
@@ -235,12 +242,22 @@ let vertexShader = `
 let floorFragmentShader = `
     #version 300 es
     precision highp float;
+    
+    uniform sampler2D reflectionTex;
+    uniform sampler2D distortionMap;
+    uniform vec2 screenSize;
+    
+    in vec2 vUv;        
         
     out vec4 outColor;
     
     void main()
     {                
-        outColor = vec4(1.0);
+        
+        vec2 screenPos = gl_FragCoord.xy / screenSize;
+        screenPos.x = 1.0 - screenPos.x;
+        screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.02;
+        outColor = texture(reflectionTex, screenPos) * 0.8 + 0.2;        
     }
 `;
 
@@ -250,11 +267,14 @@ let floorVertexShader = `
             
     uniform mat4 modelViewProjectionMatrix;
     
-    layout(location=0) in vec4 position;
-    layout(location=1) in vec4 normal;
+    layout(location=0) in vec4 position;   
+    layout(location=1) in vec2 uv;
+    
+    out vec2 vUv;
         
     void main()
     {
+        vUv = uv;
         gl_Position = modelViewProjectionMatrix * position;           
     }
 `;
@@ -308,7 +328,13 @@ let skyboxArray = app.createVertexArray()
 
 let floorArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, floorPositions))
+    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 2, floorUvs))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, floorTriangles));
+
+let reflectionResolutionFactor = 1;
+let reflectionColorTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor);
+let reflectionDepthTarget = app.createTexture2D(app.width * reflectionResolutionFactor, app.height * reflectionResolutionFactor, {format: PicoGL.DEPTH_COMPONENT});
+let reflectionBuffer = app.createFramebuffer().colorTarget(0, reflectionColorTarget).depthTarget(reflectionDepthTarget);
 
 let projMatrix = mat4.create();
 let viewMatrix = mat4.create();
@@ -318,11 +344,35 @@ let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
+let floorModelMatrix = mat4.identity(mat4.create());
 let floorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 
+// function calculateReflectionMatrix(reflectionMat, plane)
+// {
+//     reflectionMat.m00 = (1 - 2 * plane[0] * plane[0]);
+//     reflectionMat.m01 = ( - 2 * plane[0] * plane[1]);
+//     reflectionMat.m02 = ( - 2 * plane[0] * plane[2]);
+//     reflectionMat.m03 = ( - 2 * plane[3] * plane[0]);
+//
+//     reflectionMat.m10 = ( - 2 * plane[1] * plane[0]);
+//     reflectionMat.m11 = (1 - 2 * plane[1] * plane[1]);
+//     reflectionMat.m12 = ( - 2 * plane[1] * plane[2]);
+//     reflectionMat.m13 = ( - 2 * plane[3] * plane[1]);
+//
+//     reflectionMat.m20 = ( - 2 * plane[2] * plane[0]);
+//     reflectionMat.m21 = ( - 2 * plane[2] * plane[1]);
+//     reflectionMat.m22 = (1 - 2 * plane[2] * plane[2]);
+//     reflectionMat.m23 = ( - 2 * plane[3] * plane[2]);
+//
+//     reflectionMat.m30 = 0;
+//     reflectionMat.m31 = 0;
+//     reflectionMat.m32 = 0;
+//     reflectionMat.m33 = 1;
+// }
 
-loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
+
+loadImages(["images/texture.jpg", "images/cubemap.jpg", "images/noise.png"], function (images) {
     let cubemap = app.createCubemap({cross: images[1]});
     let drawCall = app.createDrawCall(program, vertexArray)
         .texture("tex", app.createTexture2D(images[0]))
@@ -331,26 +381,29 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
     let skyboxDrawCall = app.createDrawCall(skyboxProgram, skyboxArray)
         .texture("cubemap", cubemap);
 
-    let floorDrawCall = app.createDrawCall(floorProgram, floorArray);
+    let floorDrawCall = app.createDrawCall(floorProgram, floorArray)
+        .texture("reflectionTex", reflectionColorTarget)
+        .texture("distortionMap", app.createTexture2D(images[2]));
 
     let startTime = new Date().getTime() / 1000;
 
+    function renderReflection(camPos, projMatrix, viewMatrix, modelMatrix)
+    {
+        app.drawFramebuffer(reflectionBuffer);
 
-    function draw() {
-        let time = new Date().getTime() / 1000 - startTime;
+        let cp = vec3.clone(camPos);
+        cp.y = -cp.y;
+        let vMatrix = mat4.lookAt(mat4.create(), cp, vec3.fromValues(0, 0, 0), vec3.fromValues(0, -1, 0));
+        drawObjects(cp, projMatrix, vMatrix, modelMatrix);
 
-        mat4.perspective(projMatrix, Math.PI / 2, app.width / app.height, 0.1, 100.0);
-        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 1, 2), vec3.fromValues(0, 0, 0), time * 0.05);
-        mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+        app.defaultDrawFramebuffer();
+    }
+
+    function drawObjects(camPos, projMatrix, viewMatrix, modelMatrix) {
         mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
-
-        mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
-        mat4.fromZRotation(rotateYMatrix, time * 0.2235);
-        mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
 
         mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
         mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
-        mat4.multiply(floorModelViewProjectionMatrix, viewProjMatrix, mat4.identity(mat4.create()));
 
         let skyboxView = mat4.clone(viewMatrix);
         mat4.setTranslation(skyboxView, vec3.fromValues(0, 0, 0));
@@ -369,8 +422,26 @@ loadImages(["images/texture.jpg", "images/cubemap.jpg"], function (images) {
         drawCall.uniform("cameraPosition", camPos);
         drawCall.uniform("modelMatrix", modelMatrix);
         drawCall.draw();
+    }
 
+    function draw() {
+        let time = new Date().getTime() / 1000 - startTime;
+
+        mat4.perspective(projMatrix, Math.PI / 3, app.width / app.height, 0.1, 100.0);
+        let camPos = vec3.rotateY(vec3.create(), vec3.fromValues(0, 3, 5), vec3.fromValues(0, 0, 0), time * 0.05);
+        mat4.lookAt(viewMatrix, camPos, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+
+        mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
+        mat4.fromZRotation(rotateYMatrix, time * 0.2235);
+        mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+        mat4.setTranslation(modelMatrix, vec3.fromValues(0, 1, 0));
+
+        renderReflection(camPos, projMatrix, viewMatrix, modelMatrix);
+
+        drawObjects(camPos, projMatrix, viewMatrix, modelMatrix);
+        mat4.multiply(floorModelViewProjectionMatrix, viewProjMatrix, floorModelMatrix);
         floorDrawCall.uniform("modelViewProjectionMatrix", floorModelViewProjectionMatrix);
+        floorDrawCall.uniform("screenSize", vec2.fromValues(app.width, app.height))
         floorDrawCall.draw();
 
         requestAnimationFrame(draw);
