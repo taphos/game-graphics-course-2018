@@ -56,6 +56,9 @@ let fragmentShader = `
     {        
         vec3 reflectedDir = reflect(viewDir, normalize(vNormal));
         outColor = texture(cubemap, reflectedDir);
+        
+        // Try using a higher mipmap LOD to get a rough material effect without any performance impact
+        //outColor = textureLod(cubemap, reflectedDir, 7.0);
     }
 `;
 
@@ -100,7 +103,9 @@ let mirrorFragmentShader = `
     
     void main()
     {                        
-        vec2 screenPos = gl_FragCoord.xy / screenSize;        
+        vec2 screenPos = gl_FragCoord.xy / screenSize;
+        
+        // 0.03 is a mirror distortion factor, try making a larger distortion         
         screenPos.x += (texture(distortionMap, vUv).r - 0.5) * 0.03;
         outColor = texture(reflectionTex, screenPos);
     }
