@@ -189,35 +189,6 @@ let mirrorModelViewProjectionMatrix = mat4.create();
 let skyboxViewProjectionInverse = mat4.create();
 let cameraPosition = vec3.create();
 
-function calculateReflectionMatrix(reflectionMat, mirrorModelMatrix)
-{
-    let normal = vec3.transformMat4(vec3.create(), vec3.up, mirrorModelMatrix);
-    let pos = mat4.getTranslation(vec3.create(), mirrorModelMatrix);
-    let d = -vec3.dot(normal, pos);
-    let plane = vec4.fromValues(normal[0], normal[1], normal[2], d);
-
-    reflectionMat[0] = (1 - 2 * plane[0] * plane[0]);
-    reflectionMat[4] = ( - 2 * plane[0] * plane[1]);
-    reflectionMat[8] = ( - 2 * plane[0] * plane[2]);
-    reflectionMat[12] = ( - 2 * plane[3] * plane[0]);
-
-    reflectionMat[1] = ( - 2 * plane[1] * plane[0]);
-    reflectionMat[5] = (1 - 2 * plane[1] * plane[1]);
-    reflectionMat[9] = ( - 2 * plane[1] * plane[2]);
-    reflectionMat[13] = ( - 2 * plane[3] * plane[1]);
-
-    reflectionMat[2] = ( - 2 * plane[2] * plane[0]);
-    reflectionMat[6] = ( - 2 * plane[2] * plane[1]);
-    reflectionMat[10] = (1 - 2 * plane[2] * plane[2]);
-    reflectionMat[14] = ( - 2 * plane[3] * plane[2]);
-
-    reflectionMat[3] = 0;
-    reflectionMat[7] = 0;
-    reflectionMat[11] = 0;
-    reflectionMat[15] = 1;
-
-    return reflectionMat;
-}
 
 loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
     let cubemap = app.createCubemap({cross: images[0]});
@@ -240,7 +211,7 @@ loadImages(["images/cubemap.jpg", "images/noise.png"], function (images) {
 
         app.drawBackfaces();
 
-        let reflectionMatrix = calculateReflectionMatrix(mat4.create(), mirrorModelMatrix);
+        let reflectionMatrix = mat4.calculateReflectionMatrix(mat4.create(), mirrorModelMatrix);
         let vMatrix = mat4.mul(mat4.create(), viewMatrix, reflectionMatrix);
         let cp = vec3.transformMat4(vec3.create(), cameraPosition, reflectionMatrix);
         drawObjects(cp, vMatrix);
