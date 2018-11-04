@@ -10,6 +10,8 @@ let fragmentShader = `
     precision highp float;    
     precision highp sampler2DShadow;
     
+    uniform vec4 baseColor;
+    uniform vec4 ambientColor;
     uniform vec3 lightPosition;
     uniform vec3 cameraPosition;    
     uniform sampler2DShadow shadowMap;
@@ -23,15 +25,15 @@ let fragmentShader = `
     void main() {
         vec3 shadowCoord = (vPositionFromLight.xyz / vPositionFromLight.w) / 2.0 + 0.5;        
         float shadow = texture(shadowMap, shadowCoord);
-        vec4 baseColor = vec4(1.0);
+        
         vec3 normal = normalize(vNormal);
         vec3 eyeDirection = normalize(cameraPosition - vPosition);
-        vec3 lightDirection = normalize(lightPosition - vPosition);
+        vec3 lightDirection = normalize(lightPosition - vPosition);        
         vec3 reflectionDirection = reflect(-lightDirection, normal);
-        float diffuse = shadow * max(dot(lightDirection, normal), 0.0) * 0.7;
-        float ambient = 0.2;
+        
+        float diffuse = shadow * max(dot(lightDirection, normal), 0.0);        
         float specular = shadow * pow(max(dot(reflectionDirection, eyeDirection), 0.0), 20.0) * 0.7;
-        fragColor = vec4((ambient + diffuse + specular) * baseColor.rgb, baseColor.a);
+        fragColor = vec4(diffuse * baseColor.rgb + ambientColor.rgb + specular, baseColor.a);
     }
 `;
 
@@ -84,7 +86,10 @@ let shadowVertexShader = `
     }
 `;
 
-app.cullBackfaces().depthTest();
+let bgColor = vec4.fromValues(1.0, 0.2, 0.3, 1.0);
+let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+
+app.cullBackfaces().depthTest().clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let shadowProgram = app.createProgram(shadowVertexShader.trim(), shadowFragmentShader.trim());
@@ -120,6 +125,8 @@ mat4.lookAt(lightViewMatrix, lightPosition, vec3.fromValues(0, 0, 0), vec3.fromV
 
 
 let drawCall = app.createDrawCall(program, vertexArray)
+                        .uniform("baseColor", fgColor)
+                        .uniform("ambientColor", vec4.scale(vec4.create(), bgColor, 0.7))
                         .uniform("modelMatrix", modelMatrix)
                         .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix)
                         .uniform("cameraPosition", cameraPosition)
@@ -171,7 +178,7 @@ function drawObjects(dc) {
     dc.draw();
 
     mat4.scale(modelMatrix, modelMatrix, [0.15, 0.15, 0.15]);
-    mat4.setTranslation(modelMatrix, vec3.fromValues(1, 1, 0.6));
+    mat4.setTranslation(modelMatrix, vec3.fromValues(0.9, 0.9, 0.6));
 
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
