@@ -4,25 +4,6 @@ let normals = new Float32Array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0
 let triangles = new Uint16Array([2, 1, 0, 0, 3, 2, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 14, 13, 12, 12, 15, 14, 16, 17, 18, 18, 19, 16, 22, 21, 20, 20, 23, 22]);
 
 
-let planePositions = new Float32Array([
-    -2, 0, 2,
-    2, 0, 2,
-    -2, 0, -2,
-    2, 0, -2,
-]);
-
-let planeNormals = new Float32Array([
-    0, 1, 0,
-    0, 1, 0,
-    0, 1, 0,
-    0, 1, 0
-]);
-
-let planeTriangles = new Uint16Array([
-    0, 1, 2,
-    2, 1, 3
-]);
-
 // language=GLSL
 let fragmentShader = `
     #version 300 es    
@@ -40,8 +21,7 @@ let fragmentShader = `
     out vec4 fragColor;
     
     void main() {
-        vec3 shadowCoord = (vPositionFromLight.xyz / vPositionFromLight.w) / 2.0 + 0.5;
-        shadowCoord.z -= 0.01;
+        vec3 shadowCoord = (vPositionFromLight.xyz / vPositionFromLight.w) / 2.0 + 0.5;        
         float shadow = texture(shadowMap, shadowCoord);
         vec4 baseColor = vec4(1.0);
         vec3 normal = normalize(vNormal);
@@ -110,107 +90,88 @@ let vertexArray = app.createVertexArray()
     .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, normals))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, triangles));
 
-let planeArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 3, planePositions))
-    .vertexAttributeBuffer(1, app.createVertexBuffer(PicoGL.FLOAT, 3, planeNormals))
-    .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, planeTriangles));
-
 // Change the shadow texture resolution to checkout the difference
 let shadowResolutionFactor = 0.3;
-let shadowDepthTarget = app.createTexture2D(app.width * shadowResolutionFactor, app.height * shadowResolutionFactor, {format: PicoGL.DEPTH_COMPONENT, compareMode: PicoGL.COMPARE_REF_TO_TEXTURE});
+let shadowDepthTarget = app.createTexture2D(app.width * shadowResolutionFactor, app.height * shadowResolutionFactor, {format: PicoGL.DEPTH_COMPONENT, compareMode: PicoGL.COMPARE_REF_TO_TEXTURE, magFilter: PicoGL.LINEAR, wrapT: PicoGL.CLAMP_TO_EDGE, wrapR: PicoGL.CLAMP_TO_EDGE});
 let shadowBuffer = app.createFramebuffer().depthTarget(shadowDepthTarget);
 
+let time = 0;
 let projMatrix = mat4.create();
 let viewMatrix = mat4.create();
 let viewProjMatrix = mat4.create();
 let modelMatrix = mat4.create();
-let modelViewMatrix = mat4.create();
 let modelViewProjectionMatrix = mat4.create();
 let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
-let planeModelMatrix = mat4.create();
-let planeModelViewProjectionMatrix = mat4.create();
-let cameraPosition = vec3.create();
 let lightModelViewProjectionMatrix = mat4.create();
 
-var lightPosition = vec3.fromValues(2, 3, 0);
+let cameraPosition = vec3.fromValues(0, 2, 4);
+var lightPosition = vec3.fromValues(3, 3, 0);
 var lightViewMatrix = mat4.create();
 var lightViewProjMatrix = mat4.create();
 mat4.lookAt(lightViewMatrix, lightPosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
 
 
-let drawCall = app.createDrawCall(program, vertexArray);
-let shadowDrawCall = app.createDrawCall(shadowProgram, vertexArray);
-let planeDrawCall = app.createDrawCall(program, planeArray);
+let drawCall = app.createDrawCall(program, vertexArray)
+                        .uniform("modelMatrix", modelMatrix)
+                        .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix)
+                        .uniform("cameraPosition", cameraPosition)
+                        .uniform("lightPosition", lightPosition)
+                        .uniform("lightModelViewProjectionMatrix", lightModelViewProjectionMatrix)
+                        .texture("shadowMap", shadowDepthTarget);
 
-function renderShadowMap()
-{
+let shadowDrawCall = app.createDrawCall(shadowProgram, vertexArray)
+                        .uniform("lightModelViewProjectionMatrix", lightModelViewProjectionMatrix);
+
+function renderShadowMap() {
     app.drawFramebuffer(shadowBuffer);
     app.viewport(0, 0, shadowDepthTarget.width, shadowDepthTarget.height);
-    //app.gl.cullFace(app.gl.FRONT);
-    //app.drawBackfaces();
+    app.gl.cullFace(app.gl.FRONT);
 
+    mat4.perspective(projMatrix, Math.PI * 0.15, app.width / app.height, 0.1, 100.0);
     mat4.multiply(lightViewProjMatrix, projMatrix, lightViewMatrix);
-    mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
 
     app.clear();
-    shadowDrawCall.uniform("lightModelViewProjectionMatrix", lightModelViewProjectionMatrix);
-    shadowDrawCall.draw();
+    drawObjects(shadowDrawCall);
 
-    //app.cullBackfaces();
-    //app.gl.cullFace(app.gl.BACK);
+    app.gl.cullFace(app.gl.BACK);
     app.defaultDrawFramebuffer();
     app.defaultViewport();
 }
 
-function drawObjects(cameraPosition, viewMatrix) {
-    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+function drawObjects(dc) {
+    mat4.fromXRotation(rotateXMatrix, time * 0.536);
+    mat4.fromZRotation(rotateYMatrix, time * 0.633);
+    mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
+    mat4.scale(modelMatrix, modelMatrix, [0.8, 0.8, 0.8]);
+
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+    mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
 
     app.clear();
-    drawCall.uniform("modelMatrix", modelMatrix);
-    drawCall.uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
-    drawCall.uniform("cameraPosition", cameraPosition);
-    drawCall.uniform("lightPosition", lightPosition);
-    drawCall.uniform("lightModelViewProjectionMatrix", lightModelViewProjectionMatrix);
-    drawCall.texture("shadowMap", shadowDepthTarget);
-    drawCall.draw();
-}
+    dc.draw();
 
-function drawPlane() {
-    mat4.multiply(planeModelViewProjectionMatrix, viewProjMatrix, planeModelMatrix);
-    mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, planeModelMatrix);
+    mat4.fromXRotation(rotateXMatrix, time * 0.1136);
+    mat4.fromYRotation(rotateYMatrix, time * 0.1533);
+    mat4.mul(modelMatrix, rotateYMatrix, rotateXMatrix);
+    mat4.scale(modelMatrix, modelMatrix, [2, 2, 2]);
+    mat4.setTranslation(modelMatrix, vec3.fromValues(-2, -2.5, -0.5));
 
-    planeDrawCall.uniform("modelMatrix", planeModelMatrix);
-    planeDrawCall.uniform("modelViewProjectionMatrix", planeModelViewProjectionMatrix);
-    planeDrawCall.uniform("cameraPosition", cameraPosition);
-    planeDrawCall.uniform("lightPosition", lightPosition);
-    planeDrawCall.uniform("lightModelViewProjectionMatrix", lightModelViewProjectionMatrix);
-    planeDrawCall.texture("shadowMap", shadowDepthTarget);
-    planeDrawCall.draw();
+    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+    mat4.multiply(lightModelViewProjectionMatrix, lightViewProjMatrix, modelMatrix);
+
+    dc.draw();
 }
 
 function draw() {
-    let time = new Date().getTime() * 0.001;
+    time = new Date().getTime() * 0.001;
 
     mat4.perspective(projMatrix, Math.PI / 2.5, app.width / app.height, 0.1, 100.0);
-    vec3.rotateY(cameraPosition, vec3.fromValues(0, 2, 4), vec3.zero, time * 0.05);
     mat4.lookAt(viewMatrix, cameraPosition, vec3.fromValues(0, -0.5, 0), vec3.up);
-
-    mat4.fromXRotation(rotateXMatrix, time * 0.1136 - Math.PI / 2);
-    mat4.fromZRotation(rotateYMatrix, time * 0.2235);
-    mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
-
-    mat4.fromXRotation(rotateXMatrix, 0.3);
-    mat4.fromYRotation(rotateYMatrix, time * 0.2354);
-    mat4.mul(planeModelMatrix, rotateYMatrix, rotateXMatrix);
-    mat4.setTranslation(planeModelMatrix, vec3.fromValues(0, -1, 0));
-
     mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
 
     renderShadowMap();
-    drawObjects(cameraPosition, viewMatrix);
-    drawPlane();
+    drawObjects(drawCall);
 
     requestAnimationFrame(draw);
 }
