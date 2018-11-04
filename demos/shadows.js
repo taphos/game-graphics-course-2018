@@ -65,7 +65,11 @@ let shadowFragmentShader = `
     #version 300 es
     precision highp float;
     
-    void main() {    
+    out vec4 fragColor;
+    
+    void main() {
+        // Uncomment to see the depth buffer of the shadow map    
+        //fragColor = vec4((gl_FragCoord.z - 0.98) * 50.0);    
     }
 `;
 
@@ -91,7 +95,11 @@ let vertexArray = app.createVertexArray()
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, triangles));
 
 // Change the shadow texture resolution to checkout the difference
-let shadowDepthTarget = app.createTexture2D(512, 512, {format: PicoGL.DEPTH_COMPONENT, compareMode: PicoGL.COMPARE_REF_TO_TEXTURE, magFilter: PicoGL.LINEAR, wrapT: PicoGL.CLAMP_TO_EDGE, wrapR: PicoGL.CLAMP_TO_EDGE});
+let shadowDepthTarget = app.createTexture2D(512, 512, {
+        format: PicoGL.DEPTH_COMPONENT,
+        compareMode: PicoGL.COMPARE_REF_TO_TEXTURE,
+        magFilter: PicoGL.LINEAR,
+    });
 let shadowBuffer = app.createFramebuffer().depthTarget(shadowDepthTarget);
 
 let time = 0;
@@ -127,6 +135,7 @@ function renderShadowMap() {
     app.viewport(0, 0, shadowDepthTarget.width, shadowDepthTarget.height);
     app.gl.cullFace(app.gl.FRONT);
 
+    // Change the projection and view matrices to render objects from the point view of light source
     mat4.perspective(projMatrix, Math.PI * 0.1, shadowDepthTarget.width / shadowDepthTarget.height, 0.1, 100.0);
     mat4.multiply(lightViewProjMatrix, projMatrix, lightViewMatrix);
 
