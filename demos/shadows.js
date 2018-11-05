@@ -31,8 +31,8 @@ let fragmentShader = `
         vec3 lightDirection = normalize(lightPosition - vPosition);        
         vec3 reflectionDirection = reflect(-lightDirection, normal);
         
-        float diffuse = shadow * max(dot(lightDirection, normal), 0.0);        
-        float specular = shadow * pow(max(dot(reflectionDirection, eyeDirection), 0.0), 20.0) * 0.7;
+        float diffuse = max(dot(lightDirection, normal), 0.0) * max(shadow, 0.2);        
+        float specular = shadow * pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0) * 0.7;
         fragColor = vec4(diffuse * baseColor.rgb + ambientColor.rgb + specular, baseColor.a);
     }
 `;
