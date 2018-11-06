@@ -1,3 +1,6 @@
+// Simple shadow mapping demo
+// Home task: combine shadow mapping with texturing
+
 // Cube
 let positions = new Float32Array([-0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5]);
 let normals = new Float32Array([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -156,6 +159,7 @@ function renderShadowMap() {
 function drawObjects(dc) {
     app.clear();
 
+    // Middle object
     mat4.fromXRotation(rotateXMatrix, time * 0.536);
     mat4.fromZRotation(rotateYMatrix, time * 0.633);
     mat4.mul(modelMatrix, rotateXMatrix, rotateYMatrix);
@@ -166,6 +170,7 @@ function drawObjects(dc) {
 
     dc.draw();
 
+    // Large object
     mat4.fromXRotation(rotateXMatrix, time * 0.1136);
     mat4.fromYRotation(rotateYMatrix, time * 0.1533);
     mat4.mul(modelMatrix, rotateYMatrix, rotateXMatrix);
@@ -177,6 +182,7 @@ function drawObjects(dc) {
 
     dc.draw();
 
+    // Small object
     mat4.scale(modelMatrix, modelMatrix, [0.15, 0.15, 0.15]);
     mat4.setTranslation(modelMatrix, vec3.fromValues(0.9, 0.9, 0.6));
 
