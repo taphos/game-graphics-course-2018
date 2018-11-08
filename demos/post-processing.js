@@ -15,86 +15,41 @@ let postTriangles = new Uint16Array([
     2, 3, 1
 ]);
 
-// ******************************************************
-// **               Light configuration                **
-// ******************************************************
-
-let ambientLightColor = vec3.fromValues(0.05, 0.05, 0.1);
-let numberOfLights = 2;
-let lightColors = [vec3.fromValues(1.0, 0.0, 0.2), vec3.fromValues(0.0, 0.1, 0.2)];
-let lightInitialPositions = [vec3.fromValues(5, 0, 2), vec3.fromValues(-5, 0, 2)];
-let lightPositions = [vec3.create(), vec3.create()];
-
-
-// language=GLSL
-let lightCalculationShader = `
-    uniform vec3 cameraPosition;
-    uniform vec3 ambientLightColor;    
-    uniform vec3 lightColors[${numberOfLights}];        
-    uniform vec3 lightPositions[${numberOfLights}];
-    
-    // This function calculates light reflection using Phong reflection model (ambient + diffuse + specular)
-    vec4 calculateLights(vec3 normal, vec3 position) {
-        vec3 viewDirection = normalize(cameraPosition.xyz - position);
-        vec4 color = vec4(ambientLightColor, 1.0);
-                
-        for (int i = 0; i < lightPositions.length(); i++) {
-            vec3 lightDirection = normalize(lightPositions[i] - position);
-            
-            // Lambertian reflection (ideal diffuse of matte surfaces) is also a part of Phong model                        
-            float diffuse = max(dot(lightDirection, normal), 0.0);                                    
-                      
-            // Phong specular highlight 
-            float specular = pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), 50.0);
-            
-            // Blinn-Phong improved specular highlight                        
-            //float specular = pow(max(dot(normalize(lightDirection + viewDirection), normal), 0.0), 200.0);
-            
-            color.rgb += lightColors[i] * diffuse + specular;
-        }
-        return color;
-    }
-`;
 
 // language=GLSL
 let fragmentShader = `
     #version 300 es
-    precision highp float;        
-    ${lightCalculationShader}        
+    precision highp float;            
     
-    in vec3 vPosition;    
-    in vec3 vNormal;
-    in vec4 vColor;    
+    in vec4 color;
     
-    out vec4 outColor;        
+    out vec4 outColor;       
     
     void main() {                      
-        outColor = calculateLights(normalize(vNormal), vPosition);
-        outColor.a = (gl_FragCoord.z - 0.96) * 50.0;  
+        outColor = color;
+        outColor.a = (gl_FragCoord.z - 0.9925) * 300.0;  
     }
 `;
 
 // language=GLSL
 let vertexShader = `
     #version 300 es
-        
-    layout(location=0) in vec4 position;
-    layout(location=1) in vec4 normal;
     
-    uniform mat4 viewProjectionMatrix;
-    uniform mat4 modelMatrix;            
+    uniform vec4 bgColor;
+    uniform vec4 fgColor;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 modelViewProjectionMatrix;
     
-    out vec3 vPosition;    
-    out vec3 vNormal;
-    out vec4 vColor;
+    layout(location=0) in vec3 position;
+    layout(location=1) in vec3 normal;
     
-    void main() {
-        vec4 worldPosition = modelMatrix * position;
-        
-        vPosition = worldPosition.xyz;        
-        vNormal = (modelMatrix * normal).xyz;
-        
-        gl_Position = viewProjectionMatrix * worldPosition;                        
+    out vec4 color;
+    
+    void main()
+    {
+        gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
+        vec3 viewNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz;
+        color = mix(bgColor * 0.8, fgColor, viewNormal.z) + pow(viewNormal.z, 100.0);
     }
 `;
 
@@ -115,12 +70,13 @@ let postFragmentShader = `
         vec4 blur = vec4(0.0);
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {
-                vec4 c = texture(tex, v_position.xy + vec2(u, v) * col.a * 0.01);
-                if (c.a > col.a) c = col;
+                vec4 c = texture(tex, v_position.xy + vec2(u, v) * 0.03 * col.a);
+                //if (c.a > col.a) c = col;
                 blur += c * 0.01;
             }
                 
         outColor = blur;
+        outColor.a = 1.0;
     }
 `;
 
@@ -138,7 +94,9 @@ let postVertexShader = `
 `;
 
 
-app.clearColor([0, 0, 0, 1]);
+let bgColor = vec4.fromValues(0.0, 0.0, 0.0, 1.0);
+let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
+app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
 let program = app.createProgram(vertexShader.trim(), fragmentShader.trim());
 let postProgram = app.createProgram(postVertexShader.trim(), postFragmentShader.trim());
@@ -152,47 +110,60 @@ let postArray = app.createVertexArray()
     .vertexAttributeBuffer(0, app.createVertexBuffer(PicoGL.FLOAT, 2, postPositions))
     .indexBuffer(app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, postTriangles));
 
-let colorTarget = app.createTexture2D(app.width, app.height, {magFilter: PicoGL.LINEAR});
-let depthTarget = app.createTexture2D(app.width, app.height, {format: PicoGL.DEPTH_COMPONENT});
+let colorTarget = app.createTexture2D(app.width, app.height, {magFilter: PicoGL.LINEAR, wrapS: PicoGL.CLAMP_TO_EDGE, wrapR: PicoGL.CLAMP_TO_EDGE});
+let depthTarget = app.createTexture2D(app.width, app.height, {format: PicoGL.DEPTH_COMPONENT, type: PicoGL.FLOAT});
 let buffer = app.createFramebuffer().colorTarget(0, colorTarget).depthTarget(depthTarget);
 
 let projectionMatrix = mat4.create();
 let viewMatrix = mat4.create();
-let viewProjectionMatrix = mat4.create();
+let viewProjMatrix = mat4.create();
+let modelViewMatrix = mat4.create();
+let modelViewProjectionMatrix = mat4.create();
 let modelMatrix = mat4.create();
+let rotateXMatrix = mat4.create();
+let rotateYMatrix = mat4.create();
 
 let drawCall = app.createDrawCall(program, vertexArray)
-    .uniform("ambientLightColor", ambientLightColor);
+    .uniform("bgColor", bgColor)
+    .uniform("fgColor", fgColor)
+    .uniform("modelViewMatrix", modelViewMatrix)
+    .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
 
 let postDrawCall = app.createDrawCall(postProgram, postArray)
     .texture("tex", colorTarget);
 
-let cameraPosition = vec3.fromValues(0, 0, 3);
+let cameraPosition = vec3.fromValues(0, 0, 8);
 
 
 function draw() {
     let time = new Date().getTime() / 1000;
 
-    mat4.perspective(projectionMatrix, Math.PI / 4, app.width / app.height, 0.05, 50.0);
+    mat4.perspective(projectionMatrix, Math.PI / 8, app.width / app.height, 0.05, 50.0);
     mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
-    mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+    mat4.fromXRotation(rotateXMatrix, -Math.PI / 2 + Math.cos(time * 0.5) * 0.4);
+    mat4.fromZRotation(rotateYMatrix, Math.sin(time * 0.5) * 0.4);
+    mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+    mat4.multiply(viewProjMatrix, projectionMatrix, viewMatrix);
 
-    for (let i = 0; i < lightInitialPositions.length; i++)
-       vec3.rotateZ(lightPositions[i], lightInitialPositions[i], vec3.zero, time);
-
-    mat4.fromXRotation(modelMatrix, -Math.PI / 2);
-    mat4.setTranslation(modelMatrix, vec3.fromValues(0, 0, Math.sin(time) - 0.5));
-
-    drawCall.uniform("viewProjectionMatrix", viewProjectionMatrix);
-    drawCall.uniform("modelMatrix", modelMatrix);
-    drawCall.uniform("cameraPosition", cameraPosition);
-    drawCall.uniform("lightPositions", toUniformArray(lightPositions));
-    drawCall.uniform("lightColors", toUniformArray(lightColors));
+    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
 
     app.drawFramebuffer(buffer);
     app.viewport(0, 0, colorTarget.width, colorTarget.height);
 
     app.depthTest().cullBackfaces().clear();
+
+    mat4.setTranslation(modelMatrix, vec3.fromValues(-1, 0, -1.5));
+    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+    drawCall.draw();
+    mat4.setTranslation(modelMatrix, vec3.fromValues(0, 0, 0));
+    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
+    drawCall.draw();
+    mat4.setTranslation(modelMatrix, vec3.fromValues(1, 0, 1.5));
+    mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+    mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     drawCall.draw();
 
     app.defaultDrawFramebuffer();
