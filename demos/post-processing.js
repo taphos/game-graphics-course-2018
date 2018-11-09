@@ -26,8 +26,7 @@ let fragmentShader = `
     out vec4 outColor;       
     
     void main() {                      
-        outColor = color;
-        outColor.a = (gl_FragCoord.z - 0.9925) * 300.0;  
+        outColor = vec4(0.5); //color;
     }
 `;
 
@@ -59,24 +58,51 @@ let postFragmentShader = `
     precision mediump float;
     
     uniform sampler2D tex;
+    uniform sampler2D depthTex;
     
     in vec4 v_position;
     
     out vec4 outColor;
     
-    void main() {
-        vec4 col = texture(tex, v_position.xy);
-        float offset = col.a;
+    float getDepth(vec2 uv) {
+        float depth = texture(depthTex, uv).r;
+        return (depth - 0.992) * 250.0;
+    }
+    
+    vec4 depthOfField(vec4 col, float depth, vec2 uv) {
         vec4 blur = vec4(0.0);
+        float n = 0.0;
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {
-                vec4 c = texture(tex, v_position.xy + vec2(u, v) * 0.03 * col.a);
-                //if (c.a > col.a) c = col;
-                blur += c * 0.01;
+                vec2 coord = uv + vec2(u, v) * 0.01 * depth;
+                vec4 c = texture(tex, coord);
+                float d = getDepth(coord);
+                blur += mix(col, c, c.a);
+                n += 1.0;
             }
                 
-        outColor = blur;
-        outColor.a = 1.0;
+        return blur / n;
+    }
+    
+    vec4 ambientOcclusion(vec4 col, float depth, vec2 uv) {
+        for (float u = -1.0; u <= 1.0; u += 0.2)    
+            for (float v = -1.0; v <= 1.0; v += 0.2) {
+                vec2 coord = uv + vec2(u, v) * 0.01;
+                vec4 c = texture(tex, coord);
+                float diff = abs(depth - getDepth(coord));
+                col *= 1.0 - diff * 0.06;
+            }
+        return col;        
+    }
+    
+    
+    void main() {
+        vec4 col = texture(tex, v_position.xy);
+        float depth = getDepth(v_position.xy);
+        //col = depthOfField(col, depth, v_position.xy);
+        col = ambientOcclusion(col, depth, v_position.xy);
+        col.a = 1.0;
+        outColor = col;
     }
 `;
 
@@ -130,7 +156,8 @@ let drawCall = app.createDrawCall(program, vertexArray)
     .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
 
 let postDrawCall = app.createDrawCall(postProgram, postArray)
-    .texture("tex", colorTarget);
+    .texture("tex", colorTarget)
+    .texture("depthTex", depthTarget);
 
 let cameraPosition = vec3.fromValues(0, 0, 8);
 
