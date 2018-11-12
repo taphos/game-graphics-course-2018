@@ -26,7 +26,7 @@ let fragmentShader = `
     out vec4 outColor;       
     
     void main() {                      
-        outColor = vec4(0.5); //color;
+        outColor = color;
     }
 `;
 
@@ -34,8 +34,8 @@ let fragmentShader = `
 let vertexShader = `
     #version 300 es
     
-    uniform vec4 bgColor;
-    uniform vec4 fgColor;
+    uniform vec4 ambientColor;
+    uniform vec4 diffuseColor;
     uniform mat4 modelViewMatrix;
     uniform mat4 modelViewProjectionMatrix;
     
@@ -47,8 +47,8 @@ let vertexShader = `
     void main()
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
-        vec3 viewNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz;
-        color = mix(bgColor * 0.8, fgColor, viewNormal.z) + pow(viewNormal.z, 100.0);
+        vec3 viewNormal = (modelViewMatrix * vec4(normalize(normal), 0.0)).xyz;
+        color = diffuseColor * viewNormal.y + ambientColor;
     }
 `;
 
@@ -64,20 +64,15 @@ let postFragmentShader = `
     
     out vec4 outColor;
     
-    float getDepth(vec2 uv) {
-        float depth = texture(depthTex, uv).r;
-        return (depth - 0.992) * 250.0;
-    }
-    
     vec4 depthOfField(vec4 col, float depth, vec2 uv) {
         vec4 blur = vec4(0.0);
         float n = 0.0;
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {
-                vec2 coord = uv + vec2(u, v) * 0.01 * depth;
+                vec2 coord = uv + vec2(u, v) * 0.01 * (depth - 0.99) * 200.0;
                 vec4 c = texture(tex, coord);
-                float d = getDepth(coord);
-                blur += mix(col, c, c.a);
+                float d = texture(depthTex, coord).r;                
+                blur += c; //mix(col, c, d);
                 n += 1.0;
             }
                 
@@ -89,8 +84,8 @@ let postFragmentShader = `
             for (float v = -1.0; v <= 1.0; v += 0.2) {
                 vec2 coord = uv + vec2(u, v) * 0.01;
                 vec4 c = texture(tex, coord);
-                float diff = abs(depth - getDepth(coord));
-                col *= 1.0 - diff * 0.06;
+                float diff = abs(depth - texture(depthTex, coord).r);                
+                if (diff < 0.0001) col *= 1.0 - diff * 50.0;
             }
         return col;        
     }
@@ -98,9 +93,9 @@ let postFragmentShader = `
     
     void main() {
         vec4 col = texture(tex, v_position.xy);
-        float depth = getDepth(v_position.xy);
-        //col = depthOfField(col, depth, v_position.xy);
-        col = ambientOcclusion(col, depth, v_position.xy);
+        float depth = texture(depthTex, v_position.xy).r;
+        col = depthOfField(col, depth, v_position.xy);
+        //col = ambientOcclusion(col, depth, v_position.xy);
         col.a = 1.0;
         outColor = col;
     }
@@ -120,7 +115,7 @@ let postVertexShader = `
 `;
 
 
-let bgColor = vec4.fromValues(0.0, 0.0, 0.0, 1.0);
+let bgColor = vec4.fromValues(0.1, 0.1, 0.1, 1.0);
 let fgColor = vec4.fromValues(1.0, 0.9, 0.5, 1.0);
 app.clearColor(bgColor[0], bgColor[1], bgColor[2], bgColor[3]);
 
@@ -150,8 +145,8 @@ let rotateXMatrix = mat4.create();
 let rotateYMatrix = mat4.create();
 
 let drawCall = app.createDrawCall(program, vertexArray)
-    .uniform("bgColor", bgColor)
-    .uniform("fgColor", fgColor)
+    .uniform("ambientColor", bgColor)
+    .uniform("diffuseColor", fgColor)
     .uniform("modelViewMatrix", modelViewMatrix)
     .uniform("modelViewProjectionMatrix", modelViewProjectionMatrix);
 
@@ -180,7 +175,7 @@ function draw() {
 
     app.depthTest().cullBackfaces().clear();
 
-    mat4.setTranslation(modelMatrix, vec3.fromValues(-1, 0, -1.5));
+    mat4.setTranslation(modelMatrix, vec3.fromValues(-1.2, 0, -2));
     mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     drawCall.draw();
@@ -188,7 +183,7 @@ function draw() {
     mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     drawCall.draw();
-    mat4.setTranslation(modelMatrix, vec3.fromValues(1, 0, 1.5));
+    mat4.setTranslation(modelMatrix, vec3.fromValues(1.2, 0, 2));
     mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
     mat4.multiply(modelViewProjectionMatrix, viewProjMatrix, modelMatrix);
     drawCall.draw();
