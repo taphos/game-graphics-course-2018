@@ -48,7 +48,7 @@ let vertexShader = `
     {
         gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);
         vec3 viewNormal = (modelViewMatrix * vec4(normalize(normal), 0.0)).xyz;
-        color = diffuseColor * viewNormal.y + ambientColor;
+        color = diffuseColor * clamp(viewNormal.y, 0.0, 1.0) + ambientColor;
     }
 `;
 
@@ -59,6 +59,7 @@ let postFragmentShader = `
     
     uniform sampler2D tex;
     uniform sampler2D depthTex;
+    uniform float time;
     
     in vec4 v_position;
     
@@ -72,32 +73,43 @@ let postFragmentShader = `
                 float factor = clamp((depth - 0.992) * 200.0, 0.0, 1.0);
                 blur += texture(tex, uv + vec2(u, v) * factor * 0.02);
                 n += 1.0;
-            }
-                
+            }                
         return blur / n;
     }
     
     vec4 ambientOcclusion(vec4 col, float depth, vec2 uv) {
         for (float u = -1.0; u <= 1.0; u += 0.2)    
-            for (float v = -1.0; v <= 1.0; v += 0.2) {
-                vec2 coord = uv + vec2(u, v) * 0.01;
-                vec4 c = texture(tex, coord);
-                float diff = abs(depth - texture(depthTex, coord).r);                
-                if (diff < 0.0001) col *= 1.0 - diff * 50.0;
+            for (float v = -1.0; v <= 1.0; v += 0.2) {                
+                float diff = abs(depth - texture(depthTex, uv + vec2(u, v) * 0.01).r);                                
+                col *= 1.0 - diff * 30.0;
             }
         return col;        
-    }
+    }   
     
+    float random(vec3 seed) {
+        return fract(dot(seed, vec3(12.23423, 65.4336, 97.45356)));
+    } 
     
     void main() {
         vec4 col = texture(tex, v_position.xy);
         float depth = texture(depthTex, v_position.xy).r;
+        
+        // Depth of field
         col = depthOfField(col, depth, v_position.xy);
-        //col = ambientOcclusion(col, depth, v_position.xy);
-        col.a = 1.0;
+        
+        // Ambient Occlusion
+        //col = ambientOcclusion(col, depth, v_position.xy);                
+        
+        // Invert
+        //col.rgb = 1.0 - col.rgb;
+        
+        // Fog
+        //col.rgb = col.rgb + vec3((depth - 0.992) * 200.0);
+        
+        // Noise
+        //col.rgb *= random(v_position.xyz * time) * 2.0;                
+                        
         outColor = col;
-                
-        //outColor = vec4((depth - 0.992) * 200.0);
     }
 `;
 
@@ -157,8 +169,10 @@ let postDrawCall = app.createDrawCall(postProgram, postArray)
 let cameraPosition = vec3.fromValues(0, 0, 8);
 
 
+let startTime = new Date().getTime() / 1000;
+
 function draw() {
-    let time = new Date().getTime() / 1000;
+    let time = new Date().getTime() / 1000 - startTime;
 
     mat4.perspective(projectionMatrix, Math.PI / 8, app.width / app.height, 0.05, 50.0);
     mat4.lookAt(viewMatrix, cameraPosition, vec3.zero, vec3.up);
@@ -192,6 +206,7 @@ function draw() {
     app.viewport(0, 0, app.width, app.height);
 
     app.noDepthTest().drawBackfaces();
+    postDrawCall.uniform("time", time);
     postDrawCall.draw();
 
     requestAnimationFrame(draw);
