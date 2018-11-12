@@ -69,10 +69,8 @@ let postFragmentShader = `
         float n = 0.0;
         for (float u = -1.0; u <= 1.0; u += 0.2)    
             for (float v = -1.0; v <= 1.0; v += 0.2) {
-                vec2 coord = uv + vec2(u, v) * 0.01 * (depth - 0.99) * 200.0;
-                vec4 c = texture(tex, coord);
-                float d = texture(depthTex, coord).r;                
-                blur += c; //mix(col, c, d);
+                float factor = clamp((depth - 0.992) * 200.0, 0.0, 1.0);
+                blur += texture(tex, uv + vec2(u, v) * factor * 0.02);
                 n += 1.0;
             }
                 
@@ -98,6 +96,8 @@ let postFragmentShader = `
         //col = ambientOcclusion(col, depth, v_position.xy);
         col.a = 1.0;
         outColor = col;
+                
+        //outColor = vec4((depth - 0.992) * 200.0);
     }
 `;
 
